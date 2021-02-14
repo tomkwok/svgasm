@@ -7,15 +7,26 @@
 #include <unistd.h>
 
 #define BUFFER_LEN 1024
+#define TRANSITION_PERCENT 0.0001
 
-#define DELAY_SECONDS 1
+#define DELAY_SECS "0.5"
 #define STDOUT_NAME "-"
 #define ID_PREFIX "_"
-#define CLEANER_CMD "svgcleaner -c %s"
+#define ITER_COUNT "infinite"
+#define LOADING_TEXT true
+#define CLEANER_CMD "svgcleaner --multipass -c %s"
+#define TRACER_CMD "cat %s"
 
-#define TRANSITION_PERCENT 0.001
-
-#define HELP_CONTENT "svgasm [-d delayseconds] [-o outfilepath] [-p idprefix] [-c cleanercmd] infilepath..."
+#define HELP_CONTENT "svgasm [options] infilepath...\n\n" \
+    "Options:\n" \
+    "  -d <delaysecs>     animation delay in seconds  (default: " DELAY_SECS ")\n" \
+    "  -o <outfilepath>   path to SVG animation output file  (default: " STDOUT_NAME ")\n" \
+    "  -p <idprefix>      prefix added to element IDs  (default: " ID_PREFIX ")\n" \
+    "  -i <itercount>     animation iteration count  (default: " ITER_COUNT ")\n" \
+    "  -c <cleanercmd>    command for cleaner with '%s'  (default: '" CLEANER_CMD "')\n" \
+    "  -t <tracercmd>     command for tracer with '%s'  (default: '" TRACER_CMD "')\n" \
+    "  -l                 turns off loading text in output  \n" \
+    "  -h                 print help information\n"
 
 inline std::string exec (const char* cmd) {
     std::cerr << cmd << std::endl;
@@ -41,16 +52,37 @@ inline void string_replace (std::string& s, const std::string& search,
     }
 }
 
+inline double parse_fraction (std::string s) {
+    size_t pos = s.find("/");
+    if (pos == std::string::npos) {
+        return atof(s.c_str());
+    } else {
+        double a = atof(s.substr(0, pos).c_str());
+        double b = atof(s.substr(pos+1).c_str());
+        return a / b;
+    }
+}
+
 int main (int argc, char *argv[]) {
-    double delayseconds = DELAY_SECONDS;
+    double delaysecs = atof(DELAY_SECS);
     char outfilepath[BUFFER_LEN] = STDOUT_NAME;
     char idprefix[BUFFER_LEN] = ID_PREFIX;
+    char itercount[BUFFER_LEN] = ITER_COUNT;
     char cleanercmd[BUFFER_LEN] = CLEANER_CMD;
+    char tracercmd[BUFFER_LEN] = TRACER_CMD;
+    bool loadingtext = LOADING_TEXT;
     int c;
-    while ((c = getopt(argc, argv, "o:d:c:h")) != -1) {
+    while ((c = getopt(argc, argv, "d:o:p:i:c:t:lh")) != -1) {
         switch (c) {
             case 'd':
-                delayseconds = atof(optarg);
+                double d;
+                d = parse_fraction(optarg);
+                if (d > 0.0) {
+                    delaysecs = d;
+                } else {
+                    std::cerr << "Argument -d parsing failed." << std::endl;
+                    exit(0);
+                }
                 break;
             case 'o':
                 std::strncpy(outfilepath, optarg, BUFFER_LEN);
@@ -58,19 +90,28 @@ int main (int argc, char *argv[]) {
             case 'p':
                 std::strncpy(idprefix, optarg, BUFFER_LEN);
                 break;
+            case 'i':
+                std::strncpy(itercount, optarg, BUFFER_LEN);
+                break;
             case 'c':
                 std::strncpy(cleanercmd, optarg, BUFFER_LEN);
                 break;
+            case 't':
+                std::strncpy(tracercmd, optarg, BUFFER_LEN);
+                break;
+            case 'l':
+                loadingtext = !loadingtext;
+                break;
             case 'h':
             default:
-                std::cout << HELP_CONTENT << std::endl;
+                std::cout << HELP_CONTENT;
                 exit(0);
                 break;
         }
     }
 
     if (argc - optind < 2) {
-        std::cout << HELP_CONTENT << std::endl;
+        std::cout << HELP_CONTENT;
         exit(0);
     }
 
@@ -104,14 +145,24 @@ int main (int argc, char *argv[]) {
             /* output opening `<svg>` tag if this file is first in the list */
             *out << s.substr(0, pos_start);
 
+            /* output loading text, which would be set to hidden at the end of file */
+            if (loadingtext) {
+                *out << "<text x=\"50%\" y=\"50%\" style=\"font-family:sans-serif\" ";
+                *out << "dominant-baseline=\"middle\" text-anchor=\"middle\" ";
+                *out << "id=\"" << idprefix << "\">Loading ...</text>";
+            }
+
             /* all elements are set to hidden before any element loads
-                or otherwise Chrome renders elements on the fly as SVG loads */
+                or otherwise Chrome starts timing animation of elements as SVG loads */
             *out << "<defs><style type=\"text/css\">";
             int len = argc - optind;
             for (int j = 0; j < len; j++) {
-                *out << "#" << idprefix << j << ",";
+                if (j > 0) {
+                    *out << ",";
+                }
+                *out << "#" << idprefix << j;
             }
-            *out << "_{visibility:hidden}</style></defs>";
+            *out << "{visibility:hidden}</style></defs>";
         }
 
         /* find the first occurrence of `</svg>` in string */
@@ -120,7 +171,7 @@ int main (int argc, char *argv[]) {
         /* unwrap `<svg>` tag in string */
         s = s.substr(pos_start, pos_end - pos_start);
 
-        /* add prefix to all element IDs to avoid conflict among frames 
+        /* add prefix to element IDs to avoid conflict since IDs are global in an SVG
             and update all links to an element with prefixed element IDs */
         const std::string attrs[] = {
             " id=\"", 
@@ -141,17 +192,26 @@ int main (int argc, char *argv[]) {
     *out << "<defs><style type=\"text/css\">";
     int len = argc - optind;
     for (int j = 0; j < len; j++) {
-        *out << "#" << idprefix << j << ",";
+        if (j > 0) {
+            *out << ",";
+        }
+        *out << "#" << idprefix << j;
     }
-    *out << "_{animation:" << (delayseconds * len) << "s linear k infinite}";
+    *out << "{animation:" << (delaysecs * len) << "s linear k " << itercount << "}";
     for (int j = 0; j < len; j++) {
         *out << "#" << idprefix << j << "{";
-        *out << "animation-delay:" << (delayseconds * j) << "s}";
+        *out << "animation-delay:" << (delaysecs * j) << "s}";
     }
     *out << "@keyframes k{" << std::fixed;
     *out << "0%," << (100.0 / len) << "%{visibility:visible}";
-    *out << ((100.0 + TRANSITION_PERCENT) / len) << "%,100%{visibility:hidden}";
-    *out << "}</style></defs>";
+    *out << ((100.0 + TRANSITION_PERCENT / delaysecs) / len) << "%,100%";
+    *out << "{visibility:hidden}}";
+    if (loadingtext) {
+        *out << "#" << idprefix << "{visibility:hidden}";
+    }
+    *out << "</style></defs>";
 
     *out << "</svg>";
+
+    return 0;
 }
