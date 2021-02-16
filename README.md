@@ -5,7 +5,7 @@ SVG animation from multiple SVGs or single GIF using tracer
 [***svgasm***](https://github.com/tomkwok/svgasm) is a proof-of-concept SVG assembler to generate a self-contained animated SVG file from multiple SVG files with CSS keyframes animation to play frames in sequence.
 
 - Produces single animated SVG file that is viewable in Chrome, Safari, Firefox and IE 10+.
-- Executes SVG file cleaner [*svgcleaner*](https://github.com/RazrFalcon/svgcleaner) (by default) or [*svgo*](https://github.com/svg/svgo) to minify each SVG file.
+- Executes SVG cleaner [*svgcleaner*](https://github.com/RazrFalcon/svgcleaner) (by default) or [*svgo*](https://github.com/svg/svgo) to minify each SVG file.
 - Executes bitmap tracer [*potrace*](http://potrace.sourceforge.net/) (by default) or [*autotrace*](https://github.com/autotrace/autotrace) to convert raster image input to SVG.
 
 ## Usage
@@ -28,7 +28,7 @@ Options:
 
 ```sh
 svgasm -d 2 -o animation.svg input1.svg input2.svg input3.svg
-svgasm -d 1/30 frame*.svg > animation.svg
+svgasm -d 1/30 -c 'svgo -o - %s' frame*.svg > animation.svg
 svgasm animation.gif > animation.svg
 ```
 
@@ -55,7 +55,7 @@ svgasm
 
 ## Building
 
-To build ***svgasm*** with a C++11 complier, change `clang++` in `Makefile` to your installed compiler, and run the following commands:
+To build ***svgasm*** with a C++98 complier, change `clang++` in `Makefile` to your installed compiler, and run the following commands:
 
 ```sh
 git clone https://github.com/tomkwok/svgasm
@@ -69,7 +69,7 @@ Before running ***svgasm***, install runtime dependencies. An example instructio
 sudo pacman -S svgcleaner potrace imagemagick
 ```
 
-## Benchmark with different cleaners
+## Benchmark with different SVG cleaners
 
 ***svgasm*** has been tested to work with the following cleaners:
 
@@ -99,7 +99,7 @@ The following are the results of using ***svgasm*** to produce the 41-frame cont
 - The `<svg>` tag including its attributes (such as `width`, `height` and `viewbox`) in the first SVG file in the sequence of command-line arguments to the ***svgasm*** tool is copied to the output. It is assumed that all frames have the same size and viewport bounds, or all frames are effectively cropped to the size of the first frame. This approach is taken for simplicity in this proof-of-concept implementation.
 - The ***svgasm*** tool generates a self-contained output file with a configurable loading text, the content of all frames to be animated and CSS animation styles only. It does not add `<object>` or `<script>` tags.
 
-## Note on loading text in output
+## Note on loading text in SVG output
 
 - By default, the output of ***svgasm*** contains a centered loading text ("Loading ..." by default) displayed in sans serif font, which is especially useful for a large SVG file. The text element and style cost a total of 147 bytes with default `loadingtext` and `idprefix`. The loading text in output can be turned off with argument `-l ''`.
 - The loading text can only be seen as the file is loading in Chrome and Firefox. It cannot be seen in Safari, which waits until SVG is completely loaded before displaying any elements.
@@ -126,4 +126,4 @@ Add more functionalities
 - Support frame extraction from animated PNG files.
 - Assembler to combine two or more SVG animations in sequence.
 - Disassembler for SVG animation created with *svgasm*.
-- Add transition animation during frame play with configurable keyframes percentage and timing function.
+- Add transition animation during frame play with configurable duration percentage and timing function.
