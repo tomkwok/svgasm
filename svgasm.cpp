@@ -13,19 +13,20 @@
 #define STDOUT_NAME "-"
 #define ID_PREFIX "_"
 #define ITER_COUNT "infinite"
-#define LOADING_TEXT true
+#define LOADING_TEXT "Loading ..."
 #define CLEANER_CMD "svgcleaner --multipass -c %s"
 #define TRACER_CMD "cat %s"
 
 #define HELP_CONTENT "svgasm [options] infilepath...\n\n" \
     "Options:\n" \
     "  -d <delaysecs>     animation delay in seconds  (default: " DELAY_SECS ")\n" \
-    "  -o <outfilepath>   path to SVG animation output file  (default: " STDOUT_NAME ")\n" \
+    "  -o <outfilepath>   path to SVG animation output file " \
+                            "or " STDOUT_NAME " for stdout  (default: " STDOUT_NAME ")\n" \
     "  -p <idprefix>      prefix added to element IDs  (default: " ID_PREFIX ")\n" \
     "  -i <itercount>     animation iteration count  (default: " ITER_COUNT ")\n" \
+    "  -l <loadingtext>   loading text in output  (default: '" LOADING_TEXT "')\n" \
     "  -c <cleanercmd>    command for cleaner with '%s'  (default: '" CLEANER_CMD "')\n" \
     "  -t <tracercmd>     command for tracer with '%s'  (default: '" TRACER_CMD "')\n" \
-    "  -l                 turns off loading text in output  \n" \
     "  -h                 print help information\n"
 
 inline std::string exec (const char* cmd) {
@@ -68,11 +69,11 @@ int main (int argc, char *argv[]) {
     char outfilepath[BUFFER_LEN] = STDOUT_NAME;
     char idprefix[BUFFER_LEN] = ID_PREFIX;
     char itercount[BUFFER_LEN] = ITER_COUNT;
+    char loadingtext[BUFFER_LEN] = LOADING_TEXT;
     char cleanercmd[BUFFER_LEN] = CLEANER_CMD;
     char tracercmd[BUFFER_LEN] = TRACER_CMD;
-    bool loadingtext = LOADING_TEXT;
     int c;
-    while ((c = getopt(argc, argv, "d:o:p:i:c:t:lh")) != -1) {
+    while ((c = getopt(argc, argv, "d:o:p:i:l:c:t:h")) != -1) {
         switch (c) {
             case 'd':
                 double d;
@@ -93,14 +94,14 @@ int main (int argc, char *argv[]) {
             case 'i':
                 std::strncpy(itercount, optarg, BUFFER_LEN);
                 break;
+            case 'l':
+                std::strncpy(loadingtext, optarg, BUFFER_LEN);
+                break;
             case 'c':
                 std::strncpy(cleanercmd, optarg, BUFFER_LEN);
                 break;
             case 't':
                 std::strncpy(tracercmd, optarg, BUFFER_LEN);
-                break;
-            case 'l':
-                loadingtext = !loadingtext;
                 break;
             case 'h':
             default:
@@ -146,10 +147,10 @@ int main (int argc, char *argv[]) {
             *out << s.substr(0, pos_start);
 
             /* output loading text, which would be set to hidden at the end of file */
-            if (loadingtext) {
+            if (loadingtext[0] != '\0') {
                 *out << "<text x=\"50%\" y=\"50%\" style=\"font-family:sans-serif\" ";
                 *out << "dominant-baseline=\"middle\" text-anchor=\"middle\" ";
-                *out << "id=\"" << idprefix << "\">Loading ...</text>";
+                *out << "id=\"" << idprefix << "\">" << loadingtext << "</text>";
             }
 
             /* all elements are set to hidden before any element loads
@@ -206,7 +207,7 @@ int main (int argc, char *argv[]) {
     *out << "0%," << (100.0 / len) << "%{visibility:visible}";
     *out << ((100.0 + TRANSITION_PERCENT / delaysecs) / len) << "%,100%";
     *out << "{visibility:hidden}}";
-    if (loadingtext) {
+    if (loadingtext[0] != '\0') {
         *out << "#" << idprefix << "{visibility:hidden}";
     }
     *out << "</style></defs>";
