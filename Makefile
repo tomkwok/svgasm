@@ -1,4 +1,5 @@
-CC=clang++
+CC=clang
+CXX=clang++
 CFLAGS=-std=c++98 -O3
 LFLAGS=
 
@@ -6,7 +7,7 @@ clean:
 	rm ./svgasm
 
 svgasm:
-	$(CC) $(CFLAGS) $(LFLAGS) -o ./svgasm ./svgasm.cpp
+	$(CXX) $(CFLAGS) $(LFLAGS) -o ./svgasm ./svgasm.cpp
 
 all: svgasm
 

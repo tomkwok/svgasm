@@ -18,31 +18,34 @@ Options:
   -o <outfilepath>   path to SVG animation output file or - for stdout  (default: -)
   -p <idprefix>      prefix added to element IDs  (default: _)
   -i <itercount>     animation iteration count  (default: infinite)
-  -l <loadingtext>   loading text in output  (default: 'Loading ...')
-  -c <cleanercmd>    command for cleaner with '%s'  (default: 'svgcleaner --multipass -c %s')
-  -t <tracercmd>     command for tracer with '%s'  (default: 'cat %s')
+  -e <endframe>      index of frame to stop at in last iteration if not infinite  (default: -1)
+  -l <loadingtext>   loading text in output or '' to turn off  (default: 'Loading ...')
+  -c <cleanercmd>    command for SVG cleaner with '%s'  (default: 'svgcleaner --multipass -c %s')
+  -t <tracercmd>     command for tracer for non-SVG file with '%s'  (default: 'cat %s')
   -h                 print help information
 ```
 
 ## Usage examples
 
-```sh
-svgasm -d 2 -o animation.svg input1.svg input2.svg input3.svg
-svgasm -d 1/30 -c 'svgo -o - %s' frame*.svg > animation.svg
-svgasm animation.gif > animation.svg
-```
+- `svgasm -d 2 -i 5 -e 0 -o animation.svg input1.svg input2.svg input3.svg`  
+Generates output *animation.svg* from *input1.svg*, *input2.svg* and *input3.svg* that animates with a delay of 2 seconds per frame, iterates 5 times, and stops at the first frame in the last iteration. 
+- `svgasm -d 1/30 -l '' frame*.png > animation.svg`  
+Genaretes output *animation.svg* from wildcard *frame\*.png* (in alphabetical order) that animates with 30 frames per second, iterates infinitely, and with loading text turned off.
+- `svgasm animation.gif > animation.svg`  
+Genaretes output *animation.svg* from *animation.gif* that animates with the same speed and iteration count.
 
 ## Output examples
 
 ### SVG animation from multiple SVGs
 
-The following command is executed in a [Jupyter Notebook](https://jupyter.org/) to use ***svgasm*** to produce a 30-fps SVG animation from 41 pre-generated contour plot SVG files, executed via `time` command for benchmarking.
+A worked example of a 1-fps 2-frame animated calendar plot in [examples/calplot_animation.ipynb](examples/calplot_animation.ipynb) is generated using [calplot](https://github.com/tomkwok/calplot) and ***svgasm***.
 
-```python
-!time svgasm -o animation.svg -d 1/30 {' '.join([f'animation/F{beta}.svg' for beta in betas])}
-```
+![Calplot animation example](examples/calplot_animation.svg)
+
+Another example is a 30-fps 41-frame animated contour plot generated using some custom contour plot function that is also built on [matplotlib](https://github.com/matplotlib/matplotlib) and ***svgasm***.
 
 ![Contour plot animation example](examples/contour_f_beta_animation.svg)
+
 
 ## Install on macOS
 
@@ -79,17 +82,17 @@ sudo pacman -S svgcleaner potrace imagemagick
 
 The following are the results of using ***svgasm*** to produce the 41-frame contour animation example above on an Intel Core i5 processor with different cleaners:
 
-- `svgasm -c 'svgcleaner --multipass -c %s' ...`: output with file size 2232 KiB, executed in 1.20 seconds.
-- `svgasm -c 'svgo --multipass -o - %s' ...`: output with file size 2054 KiB, executed in 39.04 seconds.
-- `svgasm -c 'cat %s' ...`: process already minified input files, executed in 0.43 seconds.
+- `svgasm -c 'svgcleaner --multipass -c %s' ...`: output file size 2232 KiB, executed in 0.844 s ± 0.041 s.
+- `svgasm -c 'svgo --multipass -o - %s' ...`: output file size 2054 KiB, executed in 34.839 s ± 0.292 s.
+- `svgasm -c 'cat %s' ...`: process already minified input files, executed in 0.265 s ± 0.006 s.
 
 
 ## External links
 
 - The APNG assembler [*apngasm*](https://github.com/apngasm/apngasm). The name of ***svgasm*** is inspired by *apngasm*. It is a sexy name.
 - An unmerged [pull request to *matplotlib* for SVG animation output](https://github.com/matplotlib/matplotlib/pull/4255). The lack of support for SVG animation in matplotlib was the motivation for the creation of the ***svgasm*** tool.
-- An [example](https://stackoverflow.com/questions/48893587/simple-animate-multiple-svgs-in-sequence-like-a-looping-gif) on Stack Overflow of animating a sequence of hand-drawn vector graphics.
 - The proposal of [Tom's rainbow color map](https://tomkwok.com/posts/color-maps/), which is used in the contour plot animation example above.
+- An [example](https://stackoverflow.com/questions/48893587/simple-animate-multiple-svgs-in-sequence-like-a-looping-gif) on Stack Overflow of animating a sequence of hand-drawn vector graphics.
 
 ## Implementation notes
 
@@ -117,6 +120,7 @@ Reduce output generation time
 - Parallelize cleaner and tracer execution for input files on multiple threads.
 
 Improve terminal I/O
+- Support building and running on Windows.
 - Command line argument input sanitization.
 - Argument option `-q` for quietness to suppress standard error output.
 - Progress bar for processing input files.
