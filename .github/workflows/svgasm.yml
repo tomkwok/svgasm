@@ -1,4 +1,4 @@
-name: make-master
+name: svgasm
 
 on: [push, pull_request]
 

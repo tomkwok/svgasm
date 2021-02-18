@@ -19,8 +19,8 @@
 #define ITER_COUNT "infinite"
 #define END_FRAME "-1"
 #define LOADING_TEXT "Loading ..."
-#define CLEANER_CMD "svgcleaner --multipass -c %s"
-#define TRACER_CMD "convert -alpha remove '%s' pgm: | " \
+#define CLEANER_CMD "svgcleaner --multipass -c \"%s\""
+#define TRACER_CMD "convert -alpha remove \"%s\" pgm: | " \
     "mkbitmap -f 2 -s 1 -t 0.4 - -o - | potrace -t 5 --svg -o -"
 
 #define HELP_CONTENT "svgasm [options] infilepath...\n\n" \
@@ -34,9 +34,9 @@
                             "  (default: " END_FRAME ")\n" \
     "  -l <loadingtext>   loading text in output or '' to turn off" \
                             "  (default: '" LOADING_TEXT "')\n" \
-    "  -c <cleanercmd>    command for SVG cleaner with '%s'" \
+    "  -c <cleanercmd>    command for SVG cleaner with \"%s\"" \
                             "  (default: '" CLEANER_CMD "')\n" \
-    "  -t <tracercmd>     command for tracer for non-SVG file with '%s'" \
+    "  -t <tracercmd>     command for tracer for non-SVG file with \"%s\"" \
                             "  (default: '" TRACER_CMD "')\n" \
     "  -h                 print help information\n"
 
@@ -225,6 +225,7 @@ int main (int argc, char *argv[]) {
             " id=\"", 
             " href=\"#", 
             " xlink:href=\"#", 
+            "=\"url(#",
         };
         for (size_t j = 0; j < sizeof(attrs) / sizeof(attrs[0]); j++) {
             std::stringstream ss;

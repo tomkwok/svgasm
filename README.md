@@ -1,10 +1,10 @@
-# svgasm
+# *svgasm* &nbsp; [![Build status of this repository](https://github.com/tomkwok/svgasm/workflows/svgasm/badge.svg)](https://github.com/tomkwok/svgasm/actions?query=branch%3Amaster)
 
 SVG animation from multiple SVGs or single GIF using tracer
 
 [***svgasm***](https://github.com/tomkwok/svgasm) is a proof-of-concept SVG assembler to generate a self-contained animated SVG file from multiple SVG files with CSS keyframes animation to play frames in sequence.
 
-- Produces single animated SVG file that is viewable in Chrome, Safari, Firefox and IE 10+.
+- Produces single animated SVG file that is viewable in Chrome, Safari, Firefox, Edge and IE 10+.
 - Executes SVG cleaner [*svgcleaner*](https://github.com/RazrFalcon/svgcleaner) (by default) or [*svgo*](https://github.com/svg/svgo) to minify each SVG file.
 - Executes bitmap tracer [*potrace*](http://potrace.sourceforge.net/) (by default) or [*autotrace*](https://github.com/autotrace/autotrace) to convert raster image input to SVG.
 
@@ -20,8 +20,8 @@ Options:
   -i <itercount>     animation iteration count  (default: infinite)
   -e <endframe>      index of frame to stop at in last iteration if not infinite  (default: -1)
   -l <loadingtext>   loading text in output or '' to turn off  (default: 'Loading ...')
-  -c <cleanercmd>    command for SVG cleaner with '%s'  (default: 'svgcleaner --multipass -c %s')
-  -t <tracercmd>     command for tracer for non-SVG file with '%s'  (default: 'cat %s')
+  -c <cleanercmd>    command for SVG cleaner with "%s"  (default: 'svgcleaner --multipass -c "%s"')
+  -t <tracercmd>     command for tracer for non-SVG file with "%s"  (default: '')
   -h                 print help information
 ```
 
@@ -37,6 +37,10 @@ Genaretes output *animation.svg* from *animation.gif* that animates with the sam
 ## Output examples
 
 ### SVG animation from multiple SVGs
+
+An example of a 2-fps 2-frame animated build status badge for this project is generated using ***svgasm*** from 2 [GitHub Workflows status badge](https://docs.github.com/en/actions/managing-workflow-runs/adding-a-workflow-status-badge) SVG files.
+
+![Build status badge animation example](examples/badge_animation.svg)
 
 A worked example of a 1-fps 2-frame animated calendar plot in [examples/calplot_animation.ipynb](examples/calplot_animation.ipynb) is generated using [calplot](https://github.com/tomkwok/calplot) and ***svgasm***.
 
@@ -64,6 +68,7 @@ To build ***svgasm*** with a C++98 complier, change `clang++` in `Makefile` to y
 git clone https://github.com/tomkwok/svgasm
 cd svgasm/
 make svgasm
+./svgasm
 ```
 
 Before running ***svgasm***, install runtime dependencies. An example instruction is provided for [Arch Linux](https://archlinux.org/) as follows:
@@ -82,8 +87,8 @@ sudo pacman -S svgcleaner potrace imagemagick
 
 The following are the results of using ***svgasm*** to produce the 41-frame contour animation example above on an Intel Core i5 processor with different cleaners:
 
-- `svgasm -c 'svgcleaner --multipass -c %s' ...`: output file size 2232 KiB, executed in 0.844 s ± 0.041 s.
-- `svgasm -c 'svgo --multipass -o - %s' ...`: output file size 2054 KiB, executed in 34.839 s ± 0.292 s.
+- `svgasm -c 'svgcleaner --multipass -c %s' ...`: output file size 2,232 KiB, executed in 0.844 s ± 0.041 s.
+- `svgasm -c 'svgo --multipass -o - %s' ...`: output file size 2,054 KiB, executed in 34.839 s ± 0.292 s.
 - `svgasm -c 'cat %s' ...`: process already minified input files, executed in 0.265 s ± 0.006 s.
 
 
@@ -104,9 +109,9 @@ The following are the results of using ***svgasm*** to produce the 41-frame cont
 
 ## Note on loading text in SVG output
 
-- By default, the output of ***svgasm*** contains a centered loading text ("Loading ..." by default) displayed in sans serif font, which is especially useful for a large SVG file. The text element and style cost a total of 147 bytes with default `loadingtext` and `idprefix`. The loading text in output can be turned off with argument `-l ''`.
-- The loading text can only be seen as the file is loading in Chrome and Firefox. It cannot be seen in Safari, which waits until SVG is completely loaded before displaying any elements.
-- The loading text cannot be viewed on GitHub since GitHub replace the view with its own spinning wheel image when an SVG file is loading. Therefore, a preview of the loading text is provided as follows.
+- By default, the output of ***svgasm*** contains a configurable loading text ("Loading ..." by default) displayed in sans serif font, which is especially useful for a large SVG file since downloading and parsing takes some time. The text element and style cost a total of 147 bytes with default `loadingtext` and `idprefix`. The loading text in output can be turned off with argument `-l ''`.
+- The loading text can be seen when the file is loading in Chrome, Firefox or Edge. It cannot be seen in Safari or IE 10+, which waits until SVG is completely loaded before displaying any elements.
+- The loading text cannot be viewed on GitHub since it is replaced with GitHub's own spinning wheel image when an SVG file is loading. Instead, see custom loading text in effect in external file [contour_itercount_2.svg](https://d33wubrfki0l68.cloudfront.net/a5708d35e08996ebb3e7eb4d26194e97c55ef56e/669a6/plot/iou-vs-f1/contour_itercount_2.svg). Also, a preview of the default loading text is provided as follows.
 
 ![Loading text preview](readme/loading_text.svg)
 

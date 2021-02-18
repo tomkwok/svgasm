@@ -7,7 +7,7 @@ clean:
 	rm ./svgasm
 
 svgasm:
-	$(CXX) $(CFLAGS) $(LFLAGS) -o ./svgasm ./svgasm.cpp
+	$(CXX) $(CFLAGS) $(LFLAGS) -o ./svgasm ./src/svgasm.cpp
 
 all: svgasm
 
