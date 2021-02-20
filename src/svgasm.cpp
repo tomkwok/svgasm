@@ -3,6 +3,7 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <map>
 #include <vector>
@@ -101,6 +102,13 @@ inline double parse_fraction (std::string s) {
     }
 }
 
+inline void assert_not_string_npos (size_t& pos) {
+    if (pos == std::string::npos) {
+        std::cerr << "Input file parsing failed." << std::endl;
+        exit(0);
+    }
+}
+
 int main (int argc, char *argv[]) {
     double delaysecs = atof(DELAY_SECS);
 
@@ -111,6 +119,9 @@ int main (int argc, char *argv[]) {
     char loadingtext[BUFFER_LEN] = LOADING_TEXT;
     char cleanercmd[BUFFER_LEN] = CLEANER_CMD;
     char tracercmd[BUFFER_LEN] = TRACER_CMD;
+
+    bool auto_delaysecs = true;
+    bool auto_itercount = true;
 
     std::map<char, char*> m;
     m['o'] = outfilepath;
@@ -137,12 +148,16 @@ int main (int argc, char *argv[]) {
             d = parse_fraction(optarg);
             if (d > 0.0) {
                 delaysecs = d;
+                auto_delaysecs = false;
             } else {
                 std::cerr << "Argument -d parsing failed." << std::endl;
                 exit(0);
             }
         } else {
             std::strncpy(m[c], optarg, BUFFER_LEN);
+            if (c == 'i') {
+                auto_itercount = false;
+            }
         }
     }
 
@@ -170,10 +185,11 @@ int main (int argc, char *argv[]) {
         filepaths.push_back(argv[i]);
     }
 
+    std::string closing_tags;
     int len = filepaths.size();
     for (int i = 0; i < len; i++) {
         /* run SVG cleaner on input file to obtain a clean optimized file 
-            without unnecessary white spaces and declarations before `<svg>` tag */
+            without unnecessary white spaces in tags */
         char cmd[BUFFER_LEN];
         std::string& filepath = filepaths[i];
         if (string_endswith_lowercase(filepath, SVG_SUFFIX)) {
@@ -186,9 +202,13 @@ int main (int argc, char *argv[]) {
         }
         std::string s = exec(cmd);
 
-        /* find the first occurrence of `>` in string
-            that should belong to the opening `<svg>` tag */
-        size_t pos_start = s.find('>') + 1;
+        /* find the first occurrence of `<svg` */
+        size_t pos_tag = s.find("<svg");
+        assert_not_string_npos(pos_tag);
+
+        /* find the first occurrence of `>` after `<svg` */
+        size_t pos_start = s.find(">", pos_tag) + 1;
+        assert_not_string_npos(pos_start);
 
         if (i == 0) {
             /* output opening `<svg>` tag if this file is first in the list */
@@ -215,6 +235,12 @@ int main (int argc, char *argv[]) {
 
         /* find the first occurrence of `</svg>` in string */
         size_t pos_end = s.find("</svg>");
+        assert_not_string_npos(pos_end);
+
+        if (i == 0) {
+            /* save ending tags (`</svg>` and others if any) for output at the end */
+            closing_tags = s.substr(pos_end);
+        }
 
         /* unwrap `<svg>` tag in string */
         s = s.substr(pos_start, pos_end - pos_start);
@@ -225,10 +251,10 @@ int main (int argc, char *argv[]) {
             " id=\"", 
             " href=\"#", 
             " xlink:href=\"#", 
-            "=\"url(#",
+            " fill=\"url(#",
         };
         for (size_t j = 0; j < sizeof(attrs) / sizeof(attrs[0]); j++) {
-            std::stringstream ss;
+            std::ostringstream ss;
             ss << attrs[j] << idprefix << i;
             string_replace(s, attrs[j], ss.str());
         }
@@ -303,7 +329,11 @@ int main (int argc, char *argv[]) {
     }
 
     *out << "</style></defs>";
-    *out << "</svg>";
+    *out << closing_tags;
+
+    std::cerr << "SVG animation output saved to " << outfilepath;
+    std::cerr << std::fixed << std::setprecision(2);
+    std::cerr << " (" << (out->tellp() / 1024.0) << " KiB) " << std::endl;
 
     return 0;
 }
