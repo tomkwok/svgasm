@@ -1,3 +1,5 @@
+/* Copyright (C) 2021 tom [at] tomkwok.com */
+
 #include <cstdio>
 #include <cstring>
 #include <sstream>
@@ -13,6 +15,7 @@
 #define BUFFER_LEN 1024
 #define TRANSITION_PERCENT 0.0001
 #define SVG_SUFFIX ".svg"
+#define CLEANER_CMD_FALLBACK "cat \"%s\""
 
 #define DELAY_SECS "0.5"
 #define STDIO_NAME "-"
@@ -41,7 +44,7 @@
                             "  (default: '" TRACER_CMD "')\n" \
     "  -h                 print help information\n"
 
-inline std::string exec (const char* cmd) {
+inline std::string exec (const char* cmd, bool exit_on_fail) {
     std::cerr << cmd << std::endl;
     #ifdef _WIN32
         #define POPEN _popen
@@ -62,8 +65,12 @@ inline std::string exec (const char* cmd) {
         }
     } catch (...) {
         PCLOSE(pipe);
-        std::cerr << "Command execution failed." << std::endl;
-        exit(0);
+        if (exit_on_fail) {
+            std::cerr << "Command execution failed." << std::endl;
+            exit(0);
+        } else {
+            return "";
+        }
     }
     PCLOSE(pipe);
     return result;
@@ -122,6 +129,7 @@ int main (int argc, char *argv[]) {
 
     bool auto_delaysecs = true;
     bool auto_itercount = true;
+    bool auto_cleanercmd = true;
 
     std::map<char, char*> m;
     m['o'] = outfilepath;
@@ -157,6 +165,8 @@ int main (int argc, char *argv[]) {
             std::strncpy(m[c], optarg, BUFFER_LEN);
             if (c == 'i') {
                 auto_itercount = false;
+            } else if (c == 'c') {
+                auto_cleanercmd = false;
             }
         }
     }
@@ -188,10 +198,11 @@ int main (int argc, char *argv[]) {
     std::string closing_tags;
     int len = filepaths.size();
     for (int i = 0; i < len; i++) {
-        /* run SVG cleaner on input file to obtain a clean optimized file 
-            without unnecessary white spaces in tags */
         char cmd[BUFFER_LEN];
         std::string& filepath = filepaths[i];
+
+        /* run SVG cleaner on input file to obtain a clean optimized file
+            without unnecessary white spaces in tags */
         if (string_endswith_lowercase(filepath, SVG_SUFFIX)) {
             std::snprintf(cmd, BUFFER_LEN, cleanercmd, filepath.c_str());
         } else {
@@ -200,7 +211,21 @@ int main (int argc, char *argv[]) {
             pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos, " | ");
             pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos, cleanercmd, STDIO_NAME);
         }
-        std::string s = exec(cmd);
+
+        std::string s;
+        if (auto_cleanercmd) {
+            /* check for cleaner fallback is done only once when iteration i == 0 */
+            auto_cleanercmd = false;
+            s = exec(cmd, false);
+            if (s == "") {
+                /* change cleaner to fallback and try again */
+                std::strncpy(cleanercmd, CLEANER_CMD_FALLBACK, BUFFER_LEN);
+                i--;
+                continue;
+            }
+        } else {
+            s = exec(cmd, true);
+        }
 
         /* find the first occurrence of `<svg` */
         size_t pos_tag = s.find("<svg");
@@ -251,7 +276,7 @@ int main (int argc, char *argv[]) {
             " id=\"", 
             " href=\"#", 
             " xlink:href=\"#", 
-            " fill=\"url(#",
+            "=\"url(#", /* example attributes: fill, clip-path */
         };
         for (size_t j = 0; j < sizeof(attrs) / sizeof(attrs[0]); j++) {
             std::ostringstream ss;
