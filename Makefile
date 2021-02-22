@@ -1,5 +1,5 @@
-CC=clang
-CXX=clang++
+CC?=clang
+CXX?=clang++
 CFLAGS=-std=c++98 -O3
 LFLAGS=
 

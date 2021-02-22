@@ -1,14 +1,27 @@
 # *svgasm*
 
-[![Build status](https://github.com/tomkwok/svgasm/workflows/svgasm/badge.svg)](https://github.com/tomkwok/svgasm/actions?query=branch%3Amaster) &nbsp; [![Sponsor](readme/badge_sponsor_animation.svg)](https://github.com/sponsors/tomkwok)
+[![Sponsor][img_sponsor]][sponsor] &nbsp; [![Build status][img_build_status]][build_status] &nbsp; [![Language grade: C/C++][img_lgtm]][lgtm] &nbsp; [![License][img_license]][license]
+
+[img_build_status]: https://github.com/tomkwok/svgasm/workflows/svgasm/badge.svg
+[build_status]: https://github.com/tomkwok/svgasm/actions?query=branch%3Amaster
+
+[img_lgtm]: https://img.shields.io/lgtm/grade/cpp/g/tomkwok/svgasm.svg?logo=lgtm&logoWidth=18
+[lgtm]: https://lgtm.com/projects/g/tomkwok/svgasm/latest/files/
+
+[img_license]: https://img.shields.io/github/license/tomkwok/svgasm?color=red
+[license]: LICENSE.md
+
+[img_sponsor]: readme/badge_sponsor_animation.svg
+[sponsor]: https://github.com/sponsors/tomkwok
 
 SVG animation from multiple still SVGs or single GIF using tracer
 
-[***svgasm***](https://github.com/tomkwok/svgasm) is a proof-of-concept SVG assembler to generate a self-contained animated SVG file from multiple still SVG files with CSS keyframes animation to play frames in sequence.
+[***svgasm***](https://github.com/tomkwok/svgasm) is a proof-of-concept SVG assembler to generate a self-contained animated SVG file from multiple still SVG files with CSS keyframes animation to play frames in sequence. Steps listed in reverse order of execution:
 
 - Produces single animated SVG file that is viewable in Chrome, Safari, Firefox, Edge and IE 10+.
 - Executes SVG cleaner [*svgcleaner*](https://github.com/RazrFalcon/svgcleaner) (by default) or [*svgo*](https://github.com/svg/svgo) to minify each SVG file.
 - Executes bitmap tracer [*potrace*](http://potrace.sourceforge.net/) (by default) or [*autotrace*](https://github.com/autotrace/autotrace), or [*primitive*](https://github.com/fogleman/primitive) to convert raster image input to SVG.
+- Executes image processor [*graphicsmagick*](http://www.graphicsmagick.org) (by default) or [*imagemagick*](https://imagemagick.org/) to convert GIF animation to frames.
 
 ## Usage
 
@@ -23,7 +36,8 @@ Options:
   -e <endframe>      index of frame to stop at in last iteration if not infinite  (default: -1)
   -l <loadingtext>   loading text in output or '' to turn off  (default: 'Loading ...')
   -c <cleanercmd>    command for SVG cleaner with "%s"  (default: 'svgcleaner --multipass -c "%s"')
-  -t <tracercmd>     command for tracer for non-SVG file with "%s"  (default: '')
+  -t <tracercmd>     command for tracer for non-SVG still image with "%s"  (default: '')
+  -g <convertcmd>    command for convert used for GIF animation with %s  (default: 'gm convert %s')
   -h                 print help information
 ```
 
@@ -46,7 +60,7 @@ An example of a 2-fps 2-frame animated build status badge for this project is ge
 
 A worked example of a 1-fps 2-frame animated calendar plot in [examples/calplot_animation.ipynb](examples/calplot_animation.ipynb) (Jupyter Notebook) is generated using [calplot](https://github.com/tomkwok/calplot) and ***svgasm***.
 
-![Calplot animation example](examples/calplot_animation.svg)
+[![Calplot animation example](examples/calplot_animation.svg)](examples/calplot_animation.ipynb)
 
 While the above two examples can be created with CSS animation with some effort without the help of ***svgasm***, the following example is not so easy. The following example is a 30-fps 41-frame animated contour plot of [F<sub>&beta;</sub> score](https://en.wikipedia.org/wiki/F-score) from a sequence of 41 plots pre-generated using [matplotlib](https://github.com/matplotlib/matplotlib) animated with ***svgasm***.
 
@@ -57,16 +71,16 @@ While the above two examples can be created with CSS animation with some effort 
 
 ## Installing on macOS
 
-To install and run a pre-compiled binary of ***svgasm*** on macOS with [Homebrew](https://brew.sh/) installed, run the following commands, which would also install dependencies *svgcleaner*, *potrace* and *imagemagick*:
+To install and run a pre-compiled binary of ***svgasm*** on macOS with [Homebrew](https://brew.sh/) installed, run the following commands, which would also install dependencies *svgcleaner*, *potrace* and *graphicsmagick*:
 
 ```sh
 brew install tomkwok/tap/svgasm
 svgasm
 ```
 
-## Building
+## Building on macOS or Linux
 
-To build ***svgasm*** with a C++98 complier, change `clang++` in `Makefile` to your installed compiler, and run:
+To build ***svgasm*** with a C++98 complier installed, run the following commands:
 
 ```sh
 git clone https://github.com/tomkwok/svgasm
@@ -80,7 +94,7 @@ make svgasm
 For more features, install runtime dependencies. An example instruction is provided for [Arch Linux](https://archlinux.org/) as follows:
 
 ```sh
-sudo pacman -S svgcleaner potrace imagemagick
+sudo pacman -S svgcleaner potrace graphicsmagick
 ```
 
 ## Installing optional runtime dependencies
@@ -152,6 +166,7 @@ The following are the results of using ***svgasm*** to produce the 41-frame cont
 
 Update README.md
 - Add SVG file size after compression with [Brotli](https://github.com/google/brotli) to benchmark results.
+- Add benchmark results of `convert` command with ImageMagick and GraphicsMagick.
 
 Reduce output file size
 - Use all alphanumeric characters in prefix for element IDs.
@@ -161,13 +176,14 @@ Reduce output generation time
 - Parallelize cleaner and tracer execution for input files on multiple threads.
 
 Improve terminal I/O
-- Support building and running on Windows (replace `cat` and `getopt()`).
+- Record and print SVG output file size if output is directed to stdout.
+- Support building and running on Windows (`cat`, `getopt.h`, `dirent.h`).
 - Command line argument input sanitization.
 - Argument option `-q` for quietness to suppress standard error output.
 - Progress bar for processing input files.
 
 Add more functionalities
-- A GUI front-end for the *svgasm* tool.
+- A GUI front-end for the *svgasm* command-line tool.
 - Support configurable output size and viewport bounds.
 - Support frame extraction from animated PNG and video files.
 - Assembler to combine two or more SVG animations in sequence.

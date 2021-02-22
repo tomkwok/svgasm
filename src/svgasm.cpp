@@ -10,7 +10,10 @@
 #include <map>
 #include <vector>
 #include <algorithm>
-#include <unistd.h> // POSIX header, not for Windows
+
+/* POSIX headers */
+#include <getopt.h>
+#include <dirent.h>
 
 #define BUFFER_LEN 1024
 #define TRANSITION_PERCENT 0.0001
@@ -24,8 +27,14 @@
 #define END_FRAME "-1"
 #define LOADING_TEXT "Loading ..."
 #define CLEANER_CMD "svgcleaner --multipass -c \"%s\""
-#define TRACER_CMD "convert -alpha remove \"%s\" pgm: | " \
+#define TRACER_CMD "gm convert +matte \"%s\" pgm:- | " \
     "mkbitmap -f 2 -s 1 -t 0.4 - -o - | potrace -t 5 --svg -o -"
+#define CONVERT_CMD "gm convert %s"
+
+#define GIF_SUFFIX ".gif"
+#define TEMP_DIR "/tmp/svgasm-XXXXXX"
+#define FRAME_FILENAME "%s/%d.png"
+#define CONVERT_CMD_ARGS_COALESCE "\"%s\" -coalesce +adjoin \"%s/%%d.png\""
 
 #define HELP_CONTENT "svgasm [options] infilepath...\n\n" \
     "Options:\n" \
@@ -40,8 +49,10 @@
                             "  (default: '" LOADING_TEXT "')\n" \
     "  -c <cleanercmd>    command for SVG cleaner with \"%s\"" \
                             "  (default: '" CLEANER_CMD "')\n" \
-    "  -t <tracercmd>     command for tracer for non-SVG file with \"%s\"" \
+    "  -t <tracercmd>     command for tracer for non-SVG still image with \"%s\"" \
                             "  (default: '" TRACER_CMD "')\n" \
+    "  -g <convertcmd>    command for convert used for GIF animation with %s" \
+                            "  (default: '" CONVERT_CMD "')\n" \
     "  -h                 print help information\n"
 
 inline std::string exec (const char* cmd, bool exit_on_fail) {
@@ -119,29 +130,33 @@ inline void assert_not_string_npos (size_t& pos) {
 int main (int argc, char *argv[]) {
     double delaysecs = atof(DELAY_SECS);
 
-    char outfilepath[BUFFER_LEN] = STDIO_NAME;
-    char idprefix[BUFFER_LEN] = ID_PREFIX;
-    char itercount[BUFFER_LEN] = ITER_COUNT;
-    char endframe[BUFFER_LEN] = END_FRAME;
-    char loadingtext[BUFFER_LEN] = LOADING_TEXT;
-    char cleanercmd[BUFFER_LEN] = CLEANER_CMD;
-    char tracercmd[BUFFER_LEN] = TRACER_CMD;
+    std::string
+        outfilepath = STDIO_NAME,
+        idprefix = ID_PREFIX,
+        itercount = ITER_COUNT,
+        endframe = END_FRAME,
+        loadingtext = LOADING_TEXT,
+        cleanercmd = CLEANER_CMD,
+        tracercmd = TRACER_CMD,
+        convertcmd = CONVERT_CMD;
 
-    bool auto_delaysecs = true;
-    bool auto_itercount = true;
-    bool auto_cleanercmd = true;
+    bool
+        auto_delaysecs = true,
+        auto_itercount = true,
+        auto_cleanercmd = true;
 
-    std::map<char, char*> m;
-    m['o'] = outfilepath;
-    m['p'] = idprefix;
-    m['i'] = itercount;
-    m['e'] = endframe;
-    m['l'] = loadingtext;
-    m['c'] = cleanercmd;
-    m['t'] = tracercmd;
+    std::map<char, std::string*> m;
+    m['o'] = &outfilepath;
+    m['p'] = &idprefix;
+    m['i'] = &itercount;
+    m['e'] = &endframe;
+    m['l'] = &loadingtext;
+    m['c'] = &cleanercmd;
+    m['t'] = &tracercmd;
+    m['g'] = &convertcmd;
 
     std::string optstring = "hd:";
-    for (std::map<char, char*>::iterator it = m.begin(); it != m.end(); ++it) {
+    for (std::map<char, std::string*>::iterator it = m.begin(); it != m.end(); ++it) {
         optstring += it->first;
         optstring += ":";
     }
@@ -162,7 +177,7 @@ int main (int argc, char *argv[]) {
                 exit(0);
             }
         } else {
-            std::strncpy(m[c], optarg, BUFFER_LEN);
+            *m[c] = optarg;
             if (c == 'i') {
                 auto_itercount = false;
             } else if (c == 'c') {
@@ -179,10 +194,10 @@ int main (int argc, char *argv[]) {
 
     std::ostream* out;
     std::ofstream outfile;
-    if (std::strcmp(outfilepath, STDIO_NAME) == 0) {
+    if (outfilepath == STDIO_NAME) {
         out = &std::cout;
     } else {
-        outfile.open(outfilepath);
+        outfile.open(outfilepath.c_str());
         if (!outfile.is_open()) {
             std::cerr << "Output file creation failed." << std::endl;
             exit(0);
@@ -192,7 +207,48 @@ int main (int argc, char *argv[]) {
 
     std::vector<std::string> filepaths;
     for (int i = optind; i < argc; i++) {
-        filepaths.push_back(argv[i]);
+        std::string filepath = argv[i];
+
+        /* run GraphicsMagick or ImageMagick on a GIF file to convert it to frames */
+        if (string_endswith_lowercase(filepath, GIF_SUFFIX)) {
+            char tempdir[] = TEMP_DIR;
+            if (mkdtemp(tempdir) == NULL) {
+                std::cerr << "Temporary directory creation failed." << std::endl;
+                exit(0);
+            }
+
+            char cmd_args[BUFFER_LEN];
+            int count = std::snprintf(cmd_args, BUFFER_LEN, CONVERT_CMD_ARGS_COALESCE,
+                filepath.c_str(), tempdir);
+            char cmd[BUFFER_LEN];
+            std::snprintf(cmd, BUFFER_LEN-count, convertcmd.c_str(), cmd_args);
+            exec(cmd, true);
+
+            /* count number of files in tempdir, which is equal to number of frames */
+            int counter = 0;
+            DIR *dir;
+            dir = opendir(tempdir);
+            if (!dir) {
+                std::cerr << "Temporary directory access failed." << std::endl;
+                exit(0);
+            }
+            struct dirent *d;
+            while ((d = readdir(dir)) != NULL) {
+                if (d->d_name[0] != '.') {
+                    counter++;
+                }
+            }
+            closedir(dir);
+
+            /* generate filenames in order of index */
+            for (int j = 0; j < counter; j++) {
+                char filename[BUFFER_LEN];
+                std::snprintf(filename, BUFFER_LEN, FRAME_FILENAME, tempdir, j);
+                filepaths.push_back(filename);
+            }
+        } else {
+            filepaths.push_back(filepath);
+        }
     }
 
     std::string closing_tags;
@@ -204,22 +260,24 @@ int main (int argc, char *argv[]) {
         /* run SVG cleaner on input file to obtain a clean optimized file
             without unnecessary white spaces in tags */
         if (string_endswith_lowercase(filepath, SVG_SUFFIX)) {
-            std::snprintf(cmd, BUFFER_LEN, cleanercmd, filepath.c_str());
+            std::snprintf(cmd, BUFFER_LEN, cleanercmd.c_str(), filepath.c_str());
         } else {
             int pos = 0;
-            pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos, tracercmd, filepath.c_str());
+            pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos,
+                tracercmd.c_str(), filepath.c_str());
             pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos, " | ");
-            pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos, cleanercmd, STDIO_NAME);
+            pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos,
+                cleanercmd.c_str(), STDIO_NAME);
         }
 
         std::string s;
         if (auto_cleanercmd) {
-            /* check for cleaner fallback is done only once when iteration i == 0 */
+            /* check for cleaner fallback is done only once */
             auto_cleanercmd = false;
             s = exec(cmd, false);
             if (s == "") {
                 /* change cleaner to fallback and try again */
-                std::strncpy(cleanercmd, CLEANER_CMD_FALLBACK, BUFFER_LEN);
+                cleanercmd = CLEANER_CMD_FALLBACK;
                 i--;
                 continue;
             }
@@ -246,7 +304,7 @@ int main (int argc, char *argv[]) {
                 *out << "id=\"" << idprefix << "\">" << loadingtext << "</text>";
             }
 
-            /* all elements are set to hidden before any element loads
+            /* all elements are set to hidden before any element for a frame loads
                 or otherwise Chrome starts timing animation of elements as SVG loads */
             *out << "<defs><style type=\"text/css\">";
             for (int j = 0; j < len; j++) {
@@ -263,11 +321,11 @@ int main (int argc, char *argv[]) {
         assert_not_string_npos(pos_end);
 
         if (i == 0) {
-            /* save ending tags (`</svg>` and others if any) for output at the end */
+            /* save ending tags (`</svg>`, and others if any) for output at the end */
             closing_tags = s.substr(pos_end);
         }
 
-        /* unwrap `<svg>` tag in string */
+        /* unwrap `<svg>` tag in string and mutate string */
         s = s.substr(pos_start, pos_end - pos_start);
 
         /* add prefix to element IDs to avoid conflict since IDs are global in an SVG
@@ -289,15 +347,15 @@ int main (int argc, char *argv[]) {
     }
 
     /* output CSS animation definitions with no unnecessary whitespace
-        note that animation is defined after other elements because otherwise 
+        note that animation is defined after frame groups because otherwise
         heavy flickering seen in Chrome due to animation start time mismatch */
     *out << "<defs><style type=\"text/css\">";
 
     int e = len;
     /* end frame index can be defined for non-infinite animation */
-    if (endframe[0] != '\0' && std::strcmp(itercount, "infinite") != 0) {
+    if (endframe[0] != '\0' && itercount != "infinite") {
         /* add length to negative end frame index and wrap out-of-bound index */
-        e = (atoi(endframe) + len) % len;
+        e = (atoi(endframe.c_str()) + len) % len;
     }
 
     for (int j = 0; j < len; j++) {
@@ -311,7 +369,7 @@ int main (int argc, char *argv[]) {
 
     int ic;
     if (e < len) {
-        ic = atoi(itercount);
+        ic = atoi(itercount.c_str());
         if (ic < 1) {
             ic = 1;
         }
@@ -348,7 +406,7 @@ int main (int argc, char *argv[]) {
     *out << ((100.0 + TRANSITION_PERCENT / delaysecs) / len) << "%,100%";
     *out << "{visibility:hidden}}";
 
-    /* hide loading text since all elements have loaded by the time this style is parsed */
+    /* hide loading text since all elements have loaded before this style is parsed */
     if (loadingtext[0] != '\0') {
         *out << "#" << idprefix << "{visibility:hidden}";
     }
@@ -358,7 +416,9 @@ int main (int argc, char *argv[]) {
 
     std::cerr << "SVG animation output saved to " << outfilepath;
     std::cerr << std::fixed << std::setprecision(2);
-    std::cerr << " (" << (out->tellp() / 1024.0) << " KiB) " << std::endl;
+    if (outfilepath != STDIO_NAME) {
+        std::cerr << " (" << (out->tellp() / 1024.0) << " KiB) " << std::endl;
+    }
 
     return 0;
 }
