@@ -8,7 +8,7 @@
 [img_lgtm]: https://img.shields.io/lgtm/grade/cpp/g/tomkwok/svgasm.svg?logo=lgtm&logoWidth=18
 [lgtm]: https://lgtm.com/projects/g/tomkwok/svgasm/latest/files/
 
-[img_license]: https://img.shields.io/github/license/tomkwok/svgasm?color=red
+[img_license]: https://img.shields.io/github/license/tomkwok/svgasm?color=green
 [license]: LICENSE.md
 
 [img_sponsor]: readme/badge_sponsor_animation.svg
@@ -23,21 +23,23 @@ SVG animation from multiple still SVGs or single GIF using tracer
 - Executes bitmap tracer [*potrace*](http://potrace.sourceforge.net/) (by default) or [*autotrace*](https://github.com/autotrace/autotrace), or [*primitive*](https://github.com/fogleman/primitive) to convert raster image input to SVG.
 - Executes image processor [*graphicsmagick*](http://www.graphicsmagick.org) (by default) or [*imagemagick*](https://imagemagick.org/) to convert GIF animation to frames.
 
+![Flow diagram of svgasm from animated GIF to animated SVG](readme/svgasm.1.svg)
+
 ## Usage
 
 ```
 svgasm [options] infilepath...
 
 Options:
-  -d <delaysecs>     animation delay in seconds  (default: 0.5)
+  -d <delaysecs>     animation time delay in seconds  (default: 0.5)
   -o <outfilepath>   path to SVG animation output file or - for stdout  (default: -)
   -p <idprefix>      prefix added to element IDs  (default: _)
   -i <itercount>     animation iteration count  (default: infinite)
   -e <endframe>      index of frame to stop at in last iteration if not infinite  (default: -1)
   -l <loadingtext>   loading text in output or '' to turn off  (default: 'Loading ...')
   -c <cleanercmd>    command for SVG cleaner with "%s"  (default: 'svgcleaner --multipass -c "%s"')
-  -t <tracercmd>     command for tracer for non-SVG still image with "%s"  (default: '')
-  -g <convertcmd>    command for convert used for GIF animation with %s  (default: 'gm convert %s')
+  -t <tracercmd>     command for tracer for non-SVG still image with "%s"  (default: 'gm convert +matte "%s" pgm:- | mkbitmap -s 1 - -o - | potrace --svg -o -')
+  -m <magickcmd>     command for magick program for GIF animation with %s  (default: 'gm %s')
   -h                 print help information
 ```
 
@@ -46,9 +48,9 @@ Options:
 - `svgasm -d 2 -i 5 -e 0 -o animation.svg input1.svg input2.svg input3.svg`  
 Generates output *animation.svg* from *input1.svg*, *input2.svg* and *input3.svg* that animates with a delay of 2 seconds per frame, iterates 5 times, and stops at the first frame in the last iteration. 
 - `svgasm -d 1/30 -l '' frame*.png > animation.svg`  
-Generates output *animation.svg* from wild card *frame\*.png* (in alphabetical order) that animates with 30 frames per second, iterates infinitely, and with loading text turned off. The default tracer command (*potrace*) is used.
-- `svgasm animation.gif > animation.svg`  
-Generates output *animation.svg* from *animation.gif* that animates with the same speed and iteration count.
+Generates output *animation.svg* from wild card *frame\*.png* (in alphabetical order) that animates with 30 frames per second, iterates infinitely, and with loading text turned off.
+- `svgasm animation1.gif animation2.gif > animation.svg`  
+Generates output *animation.svg* from *animation1.gif* and *animation2.gif* that animates with the same time delay as the first GIF file.
 
 ## Output examples
 
@@ -115,9 +117,9 @@ The following are the results of using ***svgasm*** to produce the 41-frame cont
 
 | Command executed									| Output SVG size (`gzip -9`) | Real elapsed time |
 |:-------------------------------------------------	| --------------------------- | -----------------:|
-| `svgasm -c 'cat "%s"' ...`						| 3,143 KiB	(1,145 KiB)       | 0.265 s ± 0.006 s |
-| `svgasm -c 'svgcleaner --multipass -c "%s"' ...`	| 2,232 KiB	(992 KiB)         | 0.844 s ± 0.041 s |
-| `svgasm -c 'svgo --multipass -o - "%s"' ...`		| 2,054 KiB	(884 KiB)         | 34.839 s ± 0.292 s |
+| `svgasm -c 'cat "%s"' [...]`						| 3,143 KiB	(1,145 KiB)       | 0.265 s ± 0.006 s |
+| `svgasm -c 'svgcleaner --multipass -c "%s"' [...]`	| 2,232 KiB	(992 KiB)         | 0.844 s ± 0.041 s |
+| `svgasm -c 'svgo --multipass -o - "%s"' [...]`		| 2,054 KiB	(884 KiB)         | 34.839 s ± 0.292 s |
 
 ## How ***svgasm*** is implemented
 
@@ -166,7 +168,6 @@ The following are the results of using ***svgasm*** to produce the 41-frame cont
 
 Update README.md
 - Add SVG file size after compression with [Brotli](https://github.com/google/brotli) to benchmark results.
-- Add benchmark results of `convert` command with ImageMagick and GraphicsMagick.
 
 Reduce output file size
 - Use all alphanumeric characters in prefix for element IDs.
@@ -185,6 +186,7 @@ Improve terminal I/O
 Add more functionalities
 - A GUI front-end for the *svgasm* command-line tool.
 - Support configurable output size and viewport bounds.
+- Support automatic iteration count setting from GIF files.
 - Support frame extraction from animated PNG and video files.
 - Assembler to combine two or more SVG animations in sequence.
 - Disassembler for SVG animation created with *svgasm*.

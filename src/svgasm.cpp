@@ -28,17 +28,18 @@
 #define LOADING_TEXT "Loading ..."
 #define CLEANER_CMD "svgcleaner --multipass -c \"%s\""
 #define TRACER_CMD "gm convert +matte \"%s\" pgm:- | " \
-    "mkbitmap -f 2 -s 1 -t 0.4 - -o - | potrace -t 5 --svg -o -"
-#define CONVERT_CMD "gm convert %s"
+    "mkbitmap -s 1 - -o - | potrace --svg -o -"
+#define MAGICK_CMD "gm %s"
 
 #define GIF_SUFFIX ".gif"
 #define TEMP_DIR "/tmp/svgasm-XXXXXX"
 #define FRAME_FILENAME "%s/%d.png"
-#define CONVERT_CMD_ARGS_COALESCE "\"%s\" -coalesce +adjoin \"%s/%%d.png\""
+#define MAGICK_CMD_CONVERT "convert \"%s\" -coalesce +adjoin \"%s/%%d.png\""
+#define MAGICK_CMD_IDENTIFY "identify -format \"%%T\\n\" \"%s\""
 
 #define HELP_CONTENT "svgasm [options] infilepath...\n\n" \
     "Options:\n" \
-    "  -d <delaysecs>     animation delay in seconds  (default: " DELAY_SECS ")\n" \
+    "  -d <delaysecs>     animation time delay in seconds  (default: " DELAY_SECS ")\n" \
     "  -o <outfilepath>   path to SVG animation output file " \
                             "or " STDIO_NAME " for stdout  (default: " STDIO_NAME ")\n" \
     "  -p <idprefix>      prefix added to element IDs  (default: " ID_PREFIX ")\n" \
@@ -51,8 +52,8 @@
                             "  (default: '" CLEANER_CMD "')\n" \
     "  -t <tracercmd>     command for tracer for non-SVG still image with \"%s\"" \
                             "  (default: '" TRACER_CMD "')\n" \
-    "  -g <convertcmd>    command for convert used for GIF animation with %s" \
-                            "  (default: '" CONVERT_CMD "')\n" \
+    "  -m <magickcmd>     command for magick program for GIF animation with %s" \
+                            "  (default: '" MAGICK_CMD "')\n" \
     "  -h                 print help information\n"
 
 inline std::string exec (const char* cmd, bool exit_on_fail) {
@@ -128,6 +129,10 @@ inline void assert_not_string_npos (size_t& pos) {
 }
 
 int main (int argc, char *argv[]) {
+    bool
+        auto_delaysecs = true,
+        auto_cleanercmd = true;
+
     double delaysecs = atof(DELAY_SECS);
 
     std::string
@@ -138,12 +143,7 @@ int main (int argc, char *argv[]) {
         loadingtext = LOADING_TEXT,
         cleanercmd = CLEANER_CMD,
         tracercmd = TRACER_CMD,
-        convertcmd = CONVERT_CMD;
-
-    bool
-        auto_delaysecs = true,
-        auto_itercount = true,
-        auto_cleanercmd = true;
+        magickcmd = MAGICK_CMD;
 
     std::map<char, std::string*> m;
     m['o'] = &outfilepath;
@@ -153,7 +153,7 @@ int main (int argc, char *argv[]) {
     m['l'] = &loadingtext;
     m['c'] = &cleanercmd;
     m['t'] = &tracercmd;
-    m['g'] = &convertcmd;
+    m['m'] = &magickcmd;
 
     std::string optstring = "hd:";
     for (std::map<char, std::string*>::iterator it = m.begin(); it != m.end(); ++it) {
@@ -178,9 +178,7 @@ int main (int argc, char *argv[]) {
             }
         } else {
             *m[c] = optarg;
-            if (c == 'i') {
-                auto_itercount = false;
-            } else if (c == 'c') {
+            if (c == 'c') {
                 auto_cleanercmd = false;
             }
         }
@@ -211,20 +209,33 @@ int main (int argc, char *argv[]) {
 
         /* run GraphicsMagick or ImageMagick on a GIF file to convert it to frames */
         if (string_endswith_lowercase(filepath, GIF_SUFFIX)) {
+            char cmd_args[BUFFER_LEN];
+            char cmd[BUFFER_LEN];
+
+            if (auto_delaysecs) {
+                /* get delay from the first GIF file in args rather than the last */
+                auto_delaysecs = false;
+                int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_IDENTIFY,
+                    filepath.c_str());
+                std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
+                std::string s = exec(cmd, true);
+                size_t pos = s.find("\n");
+                assert_not_string_npos(pos);
+                delaysecs = atoi(s.substr(0, pos).c_str()) * 0.01;
+            }
+
             char tempdir[] = TEMP_DIR;
             if (mkdtemp(tempdir) == NULL) {
                 std::cerr << "Temporary directory creation failed." << std::endl;
                 exit(0);
             }
 
-            char cmd_args[BUFFER_LEN];
-            int count = std::snprintf(cmd_args, BUFFER_LEN, CONVERT_CMD_ARGS_COALESCE,
+            int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_CONVERT,
                 filepath.c_str(), tempdir);
-            char cmd[BUFFER_LEN];
-            std::snprintf(cmd, BUFFER_LEN-count, convertcmd.c_str(), cmd_args);
+            std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
             exec(cmd, true);
 
-            /* count number of files in tempdir, which is equal to number of frames */
+            /* count number of files in tempdir, which should be the number of frames */
             int counter = 0;
             DIR *dir;
             dir = opendir(tempdir);
@@ -262,7 +273,7 @@ int main (int argc, char *argv[]) {
         if (string_endswith_lowercase(filepath, SVG_SUFFIX)) {
             std::snprintf(cmd, BUFFER_LEN, cleanercmd.c_str(), filepath.c_str());
         } else {
-            int pos = 0;
+            size_t pos = 0;
             pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos,
                 tracercmd.c_str(), filepath.c_str());
             pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos, " | ");
