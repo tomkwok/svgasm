@@ -47,12 +47,31 @@ Options:
 
 - `svgasm -d 2 -i 5 -e 0 -o animation.svg input1.svg input2.svg input3.svg`  
 Generates output *animation.svg* from *input1.svg*, *input2.svg* and *input3.svg* that animates with a delay of 2 seconds per frame, iterates 5 times, and stops at the first frame in the last iteration. 
-- `svgasm -d 1/30 -l '' frame*.png > animation.svg`  
-Generates output *animation.svg* from wild card *frame\*.png* (in alphabetical order) that animates with 30 frames per second, iterates infinitely, and with loading text turned off.
+- `svgasm -d 1/30 -l '' intro.jpg frame*.png > animation.svg`  
+Generates output *animation.svg* from *intro.jpg* and wild card *frame\*.png* that animates with 30 frames per second, iterates infinitely, and with loading text turned off.
 - `svgasm animation1.gif animation2.gif > animation.svg`  
 Generates output *animation.svg* from *animation1.gif* and *animation2.gif* that animates with the same time delay as the first GIF file.
 
 ## Output examples
+
+### SVG animation from single GIF using tracer
+
+`svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -f 2 -t 0.4 -s 1 - -o - | potrace -t 4 --svg -o -' examples/_infinity_spiral.gif > examples/infinity_spiral.svg`
+
+<table>
+	<tr>
+		<th>Input GIF (349 KiB)</th>
+		<th>Output SVG (713 KiB → 284 KiB gzipped)</th>
+	</tr>
+	<tr>
+		<td width="50%">
+			<img src="examples/_infinity_spiral.gif">
+		</td>
+		<td width="50%">
+			<img src="examples/infinity_spiral.svg">
+		</td>
+	</tr>
+</table>
 
 ### SVG animation from multiple still SVGs
 
@@ -113,13 +132,22 @@ sudo pacman -S svgcleaner potrace graphicsmagick
 - ***svgcleaner*** is the default cleaner program. *svgcleaner* is chosen as the default cleaner because it is generally very fast and produces small output.
 - ***svgo*** can be specified as the cleaner program. *svgo* is typically over an order of magnitude slower than *svgcleaner*. Nonetheless, *svgo* can sometimes produce smaller files than *svgcleaner* does.
 
-The following are the results of using ***svgasm*** to produce the 41-frame contour plot animation example above on an Intel Core i5 processor with different cleaners. The size of output after compression with [gzip](https://www.gzip.org/) at the best level is provided in brackets for reference since SVG files are usually served via HTTP which supports compression.
+The following are the results of using ***svgasm*** to produce the 41-frame contour plot animation example above on an Intel Core i5 processor with different cleaners. The size of output after compression with [gzip](https://www.gzip.org/) at the best level `-9` is provided in brackets for reference since SVG files are usually served via HTTP which supports compression.
 
-| Command executed									| Output SVG size (`gzip -9`) | Real elapsed time |
+| Command executed									| Output SVG size (gzip) | Real elapsed time |
 |:-------------------------------------------------	| --------------------------- | -----------------:|
 | `svgasm -c 'cat "%s"' [...]`						| 3,143 KiB	(1,145 KiB)       | 0.265 s ± 0.006 s |
 | `svgasm -c 'svgcleaner --multipass -c "%s"' [...]`	| 2,232 KiB	(992 KiB)         | 0.844 s ± 0.041 s |
 | `svgasm -c 'svgo --multipass -o - "%s"' [...]`		| 2,054 KiB	(884 KiB)         | 34.839 s ± 0.292 s |
+
+## Benchmark with GraphicsMagick and ImageMagick
+
+GraphicsMagick is a fork of ImageMagick, and it is reportedly faster in [benchmarks](http://www.graphicsmagick.org/benchmarks.html). The following are the results of using ***svgasm*** to produce the 8-frame infinity spiral animation example above on an Intel Core i5 processor with GraphicsMagick and ImageMagick specified as the magick command. Note that the magick program is also present in the tracer command for *potrace*. Identical output is obtained with the two utility programs.
+
+| 				  | Command executed											 | Real elapsed time |
+| --------------- | :----------------------------------------------------------- | -----------------:|
+| GraphicsMagick  | `svgasm -c 'cat "%s"' -m 'gm %s' -t 'gm convert "%s" [...]'` | 0.960 s ± 0.015 s |
+| ImageMagick     | `svgasm -c 'cat "%s"' -m '%s' -t 'convert "%s" [...]'`		 | 1.658 s ± 0.027 s |
 
 ## How ***svgasm*** is implemented
 
