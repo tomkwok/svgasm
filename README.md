@@ -25,13 +25,73 @@ SVG animation from multiple still SVGs or single GIF using tracer
 
 ![Flow diagram of svgasm from animated GIF to animated SVG](readme/svgasm.1.svg)
 
+## Output examples
+
+### SVG animation from single GIF using tracer
+
+`svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -t 0.4 -s 1 - -o - | potrace -t 4 --svg -o -' examples/_infinity_spiral.gif > examples/infinity_spiral.svg`
+
+<table>
+	<tr>
+		<th>Input GIF (349 KiB)</th>
+		<th>Output SVG (715 KiB → 285 KiB gzipped)</th>
+	</tr>
+	<tr>
+		<td width="50%">
+			<img src="examples/_infinity_spiral.gif" width="100%">
+		</td>
+		<td width="50%">
+			<img src="examples/infinity_spiral.svg" width="100%">
+		</td>
+	</tr>
+</table>
+
+<details><summary><b>Show NSFW cartoon GIF example</b></summary>
+
+<p><code>
+svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -x -t 0.44 -s 1 - -o - | potrace --svg -o -' examples/_mickey_mouse_nsfw.gif &gt; examples/mickey_mouse_nsfw.svg
+</code></p>
+
+<table>
+	<tr>
+		<th>Input GIF (912 KiB)</th>
+		<th>Output SVG (1164 KiB → 473 KiB gzipped)</th>
+	</tr>
+	<tr>
+		<td width="50%">
+			<img src="examples/_mickey_mouse_nsfw.gif" width="100%">
+		</td>
+		<td width="50%">
+			<img src="examples/mickey_mouse_nsfw.svg" width="100%">
+		</td>
+	</tr>
+</table>
+</details>
+
+### SVG animation from multiple still SVGs
+
+An example of a 2-fps 2-frame animated build status badge for this project is generated using ***svgasm*** from 2 [GitHub Workflows status badge](https://docs.github.com/en/actions/managing-workflow-runs/adding-a-workflow-status-badge) SVG files.
+
+![Build status badge animation example](examples/badge_animation.svg)
+
+A worked example of a 1-fps 2-frame animated calendar plot in [examples/calplot_animation.ipynb](examples/calplot_animation.ipynb) (Jupyter Notebook) is generated using [calplot](https://github.com/tomkwok/calplot) and ***svgasm***.
+
+[![Calplot animation example](examples/calplot_animation.svg)](examples/calplot_animation.ipynb)
+
+While the above two examples can be created with CSS animation with some effort without the help of ***svgasm***, the following example is not so easy. The following example is a 30-fps 41-frame animated contour plot of [F<sub>&beta;</sub> score](https://en.wikipedia.org/wiki/F-score) from a sequence of 41 plots pre-generated using [matplotlib](https://github.com/matplotlib/matplotlib) animated with ***svgasm***.
+
+![Contour plot animation example](examples/contour_f_beta_animation.svg)
+
+(An alternative approach would be to re-program plot generation with a JavaScript library such as [D3.js](https://github.com/d3/d3-contour) to have the browser generate the values of text, paths, gradients, etc.)
+
+
 ## Usage
 
 ```
 svgasm [options] infilepath...
 
 Options:
-  -d <delaysecs>     animation time delay in seconds  (default: 0.5)
+  -d <delaysecs>     animation time delay in seconds  (default: 0.1)
   -o <outfilepath>   path to SVG animation output file or - for stdout  (default: -)
   -p <idprefix>      prefix added to element IDs  (default: _)
   -i <itercount>     animation iteration count  (default: infinite)
@@ -51,43 +111,6 @@ Generates output *animation.svg* from *input1.svg*, *input2.svg* and *input3.svg
 Generates output *animation.svg* from *intro.jpg* and wild card *frame\*.png* that animates with 30 frames per second, iterates infinitely, and with loading text turned off.
 - `svgasm animation1.gif animation2.gif > animation.svg`  
 Generates output *animation.svg* from *animation1.gif* and *animation2.gif* that animates with the same time delay as the first GIF file.
-
-## Output examples
-
-### SVG animation from single GIF using tracer
-
-`svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -f 2 -t 0.4 -s 1 - -o - | potrace -t 4 --svg -o -' examples/_infinity_spiral.gif > examples/infinity_spiral.svg`
-
-<table>
-	<tr>
-		<th>Input GIF (349 KiB)</th>
-		<th>Output SVG (713 KiB → 284 KiB gzipped)</th>
-	</tr>
-	<tr>
-		<td width="50%">
-			<img src="examples/_infinity_spiral.gif">
-		</td>
-		<td width="50%">
-			<img src="examples/infinity_spiral.svg">
-		</td>
-	</tr>
-</table>
-
-### SVG animation from multiple still SVGs
-
-An example of a 2-fps 2-frame animated build status badge for this project is generated using ***svgasm*** from 2 [GitHub Workflows status badge](https://docs.github.com/en/actions/managing-workflow-runs/adding-a-workflow-status-badge) SVG files.
-
-![Build status badge animation example](examples/badge_animation.svg)
-
-A worked example of a 1-fps 2-frame animated calendar plot in [examples/calplot_animation.ipynb](examples/calplot_animation.ipynb) (Jupyter Notebook) is generated using [calplot](https://github.com/tomkwok/calplot) and ***svgasm***.
-
-[![Calplot animation example](examples/calplot_animation.svg)](examples/calplot_animation.ipynb)
-
-While the above two examples can be created with CSS animation with some effort without the help of ***svgasm***, the following example is not so easy. The following example is a 30-fps 41-frame animated contour plot of [F<sub>&beta;</sub> score](https://en.wikipedia.org/wiki/F-score) from a sequence of 41 plots pre-generated using [matplotlib](https://github.com/matplotlib/matplotlib) animated with ***svgasm***.
-
-![Contour plot animation example](examples/contour_f_beta_animation.svg)
-
-(An alternative approach would be to re-program plot generation with a JavaScript library such as [D3.js](https://github.com/d3/d3-contour) to have the browser generate the values of text, paths, gradients, etc.)
 
 
 ## Installing on macOS
@@ -214,7 +237,7 @@ Improve terminal I/O
 Add more functionalities
 - A GUI front-end for the *svgasm* command-line tool.
 - Support configurable output size and viewport bounds.
-- Support automatic iteration count setting from GIF files.
+- Support automatic iteration count extraction from GIF files.
 - Support frame extraction from animated PNG and video files.
 - Assembler to combine two or more SVG animations in sequence.
 - Disassembler for SVG animation created with *svgasm*.
@@ -227,3 +250,7 @@ Copyright (C) 2021 tom [at] tomkwok.com. All rights reserved.
 - The source code in this repository is licensed under the [Apache License, Version 2.0](LICENSE.md).
 - The text in this [README.md](README.md) document is NOT licensed under the Apache License, Version 2.0.
 - The copyright claim does not apply to the example GIF images sourced from the internet with unknown original sources. The display of the GIF images and their SVG derivatives generated by ***svgasm*** for the purpose of software demonstration should constitute fair use.
+
+## Support
+
+[Support via GitHub Sponsors / Bitcoin donation / Buy me a coffee](https://github.com/sponsors/tomkwok)

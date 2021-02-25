@@ -20,7 +20,7 @@
 #define SVG_SUFFIX ".svg"
 #define CLEANER_CMD_FALLBACK "cat \"%s\""
 
-#define DELAY_SECS "0.5"
+#define DELAY_SECS "0.1"
 #define STDIO_NAME "-"
 #define ID_PREFIX "_"
 #define ITER_COUNT "infinite"
@@ -221,7 +221,10 @@ int main (int argc, char *argv[]) {
                 std::string s = exec(cmd, true);
                 size_t pos = s.find("\n");
                 assert_not_string_npos(pos);
-                delaysecs = atoi(s.substr(0, pos).c_str()) * 0.01;
+                int d = atoi(s.substr(0, pos).c_str());
+                if (d > 0) {
+                    delaysecs = d * 0.01;
+                }
             }
 
             char tempdir[] = TEMP_DIR;
