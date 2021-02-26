@@ -26,9 +26,10 @@
 #define ITER_COUNT "infinite"
 #define END_FRAME "-1"
 #define LOADING_TEXT "Loading ..."
+#define STYLES_EXTRA ""
 #define CLEANER_CMD "svgcleaner --multipass -c \"%s\""
 #define TRACER_CMD "gm convert +matte \"%s\" pgm:- | " \
-    "mkbitmap -s 1 - -o - | potrace --svg -o -"
+    "mkbitmap -x -s 1 - -o - | potrace --svg -o -"
 #define MAGICK_CMD "gm %s"
 
 #define GIF_SUFFIX ".gif"
@@ -48,6 +49,8 @@
                             "  (default: " END_FRAME ")\n" \
     "  -l <loadingtext>   loading text in output or '' to turn off" \
                             "  (default: '" LOADING_TEXT "')\n" \
+    "  -s <stylesextra>   extra styles definition in output" \
+                            "  (default: '" STYLES_EXTRA "')\n" \
     "  -c <cleanercmd>    command for SVG cleaner with \"%s\"" \
                             "  (default: '" CLEANER_CMD "')\n" \
     "  -t <tracercmd>     command for tracer for non-SVG still image with \"%s\"" \
@@ -141,6 +144,7 @@ int main (int argc, char *argv[]) {
         itercount = ITER_COUNT,
         endframe = END_FRAME,
         loadingtext = LOADING_TEXT,
+        stylesextra = STYLES_EXTRA,
         cleanercmd = CLEANER_CMD,
         tracercmd = TRACER_CMD,
         magickcmd = MAGICK_CMD;
@@ -151,6 +155,7 @@ int main (int argc, char *argv[]) {
     m['i'] = &itercount;
     m['e'] = &endframe;
     m['l'] = &loadingtext;
+    m['s'] = &stylesextra;
     m['c'] = &cleanercmd;
     m['t'] = &tracercmd;
     m['m'] = &magickcmd;
@@ -312,7 +317,7 @@ int main (int argc, char *argv[]) {
             *out << s.substr(0, pos_start);
 
             /* output loading text, which would be set to hidden at the end of file */
-            if (loadingtext[0] != '\0') {
+            if (loadingtext != "") {
                 *out << "<text x=\"50%\" y=\"50%\" style=\"font-family:sans-serif\" ";
                 *out << "dominant-baseline=\"middle\" text-anchor=\"middle\" ";
                 *out << "id=\"" << idprefix << "\">" << loadingtext << "</text>";
@@ -364,10 +369,11 @@ int main (int argc, char *argv[]) {
         note that animation is defined after frame groups because otherwise
         heavy flickering seen in Chrome due to animation start time mismatch */
     *out << "<defs><style type=\"text/css\">";
+    *out << stylesextra;
 
     int e = len;
     /* end frame index can be defined for non-infinite animation */
-    if (endframe[0] != '\0' && itercount != "infinite") {
+    if (endframe != "" && itercount != "infinite") {
         /* add length to negative end frame index and wrap out-of-bound index */
         e = (atoi(endframe.c_str()) + len) % len;
     }
@@ -421,7 +427,7 @@ int main (int argc, char *argv[]) {
     *out << "{visibility:hidden}}";
 
     /* hide loading text since all elements have loaded before this style is parsed */
-    if (loadingtext[0] != '\0') {
+    if (loadingtext != "") {
         *out << "#" << idprefix << "{visibility:hidden}";
     }
 

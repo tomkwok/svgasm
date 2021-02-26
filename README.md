@@ -8,13 +8,11 @@
 [img_lgtm]: https://img.shields.io/lgtm/grade/cpp/g/tomkwok/svgasm.svg?logo=lgtm&logoWidth=18
 [lgtm]: https://lgtm.com/projects/g/tomkwok/svgasm/latest/files/
 
-[img_license]: https://img.shields.io/github/license/tomkwok/svgasm?color=green
+[img_license]: https://img.shields.io/github/license/tomkwok/svgasm?color=green&cacheSeconds=3600
 [license]: LICENSE.md
 
 [img_sponsor]: readme/badge_sponsor_animation.svg
 [sponsor]: https://github.com/sponsors/tomkwok
-
-SVG animation from multiple still SVGs or single GIF using tracer
 
 [***svgasm***](https://github.com/tomkwok/svgasm) is a proof-of-concept SVG assembler to generate a self-contained animated SVG file from multiple still SVG files with CSS keyframes animation to play frames in sequence. Steps listed in reverse order of execution:
 
@@ -25,12 +23,59 @@ SVG animation from multiple still SVGs or single GIF using tracer
 
 ![Flow diagram of svgasm from animated GIF to animated SVG](readme/svgasm.1.svg)
 
-## Output examples
+## Examples
 
 ### SVG animation from single GIF using tracer
 
-`svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -t 0.4 -s 1 - -o - | potrace -t 4 --svg -o -' examples/_infinity_spiral.gif > examples/infinity_spiral.svg`
+If the two versions of animation below are out of sync, try reloading this page without refreshing by clicking [here](https://github.com/tomkwok/svgasm).
 
+<details open><summary><b>Show evolution of life GIF example</b></summary>
+<p></p>
+<p><code>
+svgasm -t 'gm convert +matte "%s" -negate pgm:- | mkbitmap -x -f 1 -s 1 - -o - | potrace -t 0.4 --svg -o -' -s 'svg {background-color: black} path {fill: white}' examples/_evolution_of_life.gif &gt; examples/evolution_of_life.svg
+</code></p>
+<table>
+	<tr>
+		<th>Input GIF (6,843 KiB)</th>
+		<th>Output SVG (3,490 KiB → 1,394 KiB gzipped)</th>
+	</tr>
+	<tr>
+		<td width="50%">
+			<img src="examples/_evolution_of_life.gif" width="100%">
+		</td>
+		<td width="50%">
+			<img src="examples/evolution_of_life.svg" width="100%">
+		</td>
+	</tr>
+</table>
+</details>
+
+<details open><summary><b>Show rotating cross GIF example</b></summary>
+<p></p>
+<p><code>
+svgasm examples/_rotating_cross.gif > examples/rotating_cross.svg
+</code></p>
+<table>
+	<tr>
+		<th>Input GIF (665 KiB)</th>
+		<th>Output SVG (462 KiB → 119 KiB gzipped)</th>
+	</tr>
+	<tr>
+		<td width="50%">
+			<img src="examples/_rotating_cross.gif" width="100%">
+		</td>
+		<td width="50%">
+			<img src="examples/rotating_cross.svg" width="100%">
+		</td>
+	</tr>
+</table>
+</details>
+
+<details><summary><b>Show infinity spiral GIF example</b></summary>
+<p></p>
+<p><code>
+svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -t 0.4 -s 1 - -o - | potrace -t 4 --svg -o -' -s 'svg {background-color: white}' examples/_infinity_spiral.gif &gt; examples/infinity_spiral.svg
+</code></p>
 <table>
 	<tr>
 		<th>Input GIF (349 KiB)</th>
@@ -45,17 +90,17 @@ SVG animation from multiple still SVGs or single GIF using tracer
 		</td>
 	</tr>
 </table>
+</details>
 
 <details><summary><b>Show NSFW cartoon GIF example</b></summary>
-
+<p></p>
 <p><code>
 svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -x -t 0.44 -s 1 - -o - | potrace --svg -o -' examples/_mickey_mouse_nsfw.gif &gt; examples/mickey_mouse_nsfw.svg
 </code></p>
-
 <table>
 	<tr>
 		<th>Input GIF (912 KiB)</th>
-		<th>Output SVG (1164 KiB → 473 KiB gzipped)</th>
+		<th>Output SVG (1,164 KiB → 473 KiB gzipped)</th>
 	</tr>
 	<tr>
 		<td width="50%">
@@ -68,21 +113,29 @@ svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -x -t 0.44 -s 1 - -o - | potr
 </table>
 </details>
 
+Note that *potrace* [only natively handles two-valued images](http://potrace.sourceforge.net/faq.html#features), and produces black and white SVG output.
+
 ### SVG animation from multiple still SVGs
 
-An example of a 2-fps 2-frame animated build status badge for this project is generated using ***svgasm*** from 2 [GitHub Workflows status badge](https://docs.github.com/en/actions/managing-workflow-runs/adding-a-workflow-status-badge) SVG files.
+<details open><summary><b>Show build status badge example</b></summary>
+<p></p>
+<p>An example of a 2-fps 2-frame animated build status badge for this project is generated using <strong><em>svgasm</em></strong> from 2 <a href="https://docs.github.com/en/actions/managing-workflow-runs/adding-a-workflow-status-badge">GitHub Workflows status badge</a> SVG files.</p>
+<p><img src="examples/badge_animation.svg" alt="Build status badge animation example"></p>
+</details>
 
-![Build status badge animation example](examples/badge_animation.svg)
+<details open><summary><b>Show calendar plot example</b></summary>
+<p></p>
+<p>A worked example of a 1-fps 2-frame animated calendar plot in <a href="examples/calplot_animation.ipynb">examples/calplot_animation.ipynb</a> (Jupyter Notebook) is generated using <a href="https://github.com/tomkwok/calplot">calplot</a> and <strong><em>svgasm</em></strong>.</p>
+<p><a href="examples/calplot_animation.ipynb"><img src="examples/calplot_animation.svg" alt="Calplot animation example"></a></p>
+</details>
 
-A worked example of a 1-fps 2-frame animated calendar plot in [examples/calplot_animation.ipynb](examples/calplot_animation.ipynb) (Jupyter Notebook) is generated using [calplot](https://github.com/tomkwok/calplot) and ***svgasm***.
+<details open><summary><b>Show contour plot example</b></summary>
+<p></p>
+<p>While the above two examples can be created with CSS animation with some effort without the help of <strong><em>svgasm</em></strong>, the following example is not so easy. The following example is a 30-fps 41-frame animated contour plot of <a href="https://en.wikipedia.org/wiki/F-score">F<sub>β</sub> score</a> from a sequence of 41 plots pre-generated using <a href="https://github.com/matplotlib/matplotlib">matplotlib</a> animated with <strong><em>svgasm</em></strong>.</p>
+<p><img src="examples/contour_f_beta_animation.svg" alt="Contour plot animation example"></p>
+</details>
 
-[![Calplot animation example](examples/calplot_animation.svg)](examples/calplot_animation.ipynb)
-
-While the above two examples can be created with CSS animation with some effort without the help of ***svgasm***, the following example is not so easy. The following example is a 30-fps 41-frame animated contour plot of [F<sub>&beta;</sub> score](https://en.wikipedia.org/wiki/F-score) from a sequence of 41 plots pre-generated using [matplotlib](https://github.com/matplotlib/matplotlib) animated with ***svgasm***.
-
-![Contour plot animation example](examples/contour_f_beta_animation.svg)
-
-(An alternative approach would be to re-program plot generation with a JavaScript library such as [D3.js](https://github.com/d3/d3-contour) to have the browser generate the values of text, paths, gradients, etc.)
+Notably, ***svgasm*** does not use JavaScript in SVG output. (An alternative approach would be to re-program plot generation with a JavaScript library like [D3.js](https://github.com/d3/d3-contour) to have the browser generate the values of text, paths, gradients, etc.)
 
 
 ## Usage
@@ -97,8 +150,9 @@ Options:
   -i <itercount>     animation iteration count  (default: infinite)
   -e <endframe>      index of frame to stop at in last iteration if not infinite  (default: -1)
   -l <loadingtext>   loading text in output or '' to turn off  (default: 'Loading ...')
+  -s <stylesextra>   extra styles definition in output  (default: '')
   -c <cleanercmd>    command for SVG cleaner with "%s"  (default: 'svgcleaner --multipass -c "%s"')
-  -t <tracercmd>     command for tracer for non-SVG still image with "%s"  (default: 'gm convert +matte "%s" pgm:- | mkbitmap -s 1 - -o - | potrace --svg -o -')
+  -t <tracercmd>     command for tracer for non-SVG still image with "%s"  (default: 'gm convert +matte "%s" pgm:- | mkbitmap -x -s 1 - -o - | potrace --svg -o -')
   -m <magickcmd>     command for magick program for GIF animation with %s  (default: 'gm %s')
   -h                 print help information
 ```
@@ -124,16 +178,23 @@ svgasm
 
 ## Building on macOS or Linux
 
-To build ***svgasm*** with a C++98 complier installed, run the following commands:
+To clone this repository and build ***svgasm*** with a C++98 complier installed, run the following commands:
 
 ```sh
 git clone https://github.com/tomkwok/svgasm
 cd svgasm/
-make svgasm
+make
 ./svgasm
 ```
 
 ***svgasm*** can be executed as a standalone program. However, the only working feature without dependencies is `svgasm [options] input*.svg > output.svg` with automatic fallback to `cat` as cleaner program.
+
+To download the example files in this repository with `git-lfs` installed, run the following commands:
+
+```sh
+git lfs install
+git lfs pull
+```
 
 For more features, install runtime dependencies. An example instruction is provided for [Arch Linux](https://archlinux.org/) as follows:
 
@@ -165,12 +226,12 @@ The following are the results of using ***svgasm*** to produce the 41-frame cont
 
 ## Benchmark with GraphicsMagick and ImageMagick
 
-GraphicsMagick is a fork of ImageMagick, and it is reportedly faster in [benchmarks](http://www.graphicsmagick.org/benchmarks.html). The following are the results of using ***svgasm*** to produce the 8-frame infinity spiral animation example above on an Intel Core i5 processor with GraphicsMagick and ImageMagick specified as the magick command. Note that the magick program is also present in the tracer command for *potrace*. Identical output is obtained with the two utility programs.
+GraphicsMagick is a fork of ImageMagick, and it is reportedly faster in [benchmarks](http://www.graphicsmagick.org/benchmarks.html). The following are the results of using ***svgasm*** to produce the 60-frame rotating cross animation example above on an Intel Core i5 processor with GraphicsMagick and ImageMagick specified as the magick command. Note that the magick program is also present in the tracer command for *potrace*. Identical output is obtained with the two utility programs.
 
 | 				  | Command executed											 | Real elapsed time |
 | --------------- | :----------------------------------------------------------- | -----------------:|
-| GraphicsMagick  | `svgasm -c 'cat "%s"' -m 'gm %s' -t 'gm convert "%s" [...]'` | 0.960 s ± 0.015 s |
-| ImageMagick     | `svgasm -c 'cat "%s"' -m '%s' -t 'convert "%s" [...]'`		 | 1.658 s ± 0.027 s |
+| GraphicsMagick  | `svgasm -c 'cat "%s"' -m 'gm %s' -t 'gm convert "%s" [...]'` | 3.983 s ± 0.028 s |
+| ImageMagick     | `svgasm -c 'cat "%s"' -m '%s' -t 'convert "%s" [...]'`		 | 6.243 s ± 0.057 s |
 
 ## How ***svgasm*** is implemented
 
@@ -253,4 +314,4 @@ Copyright (C) 2021 tom [at] tomkwok.com. All rights reserved.
 
 ## Support
 
-[Support via GitHub Sponsors / Bitcoin donation / Buy me a coffee](https://github.com/sponsors/tomkwok)
+&nbsp; ❤ &nbsp; [Support via GitHub Sponsors / Bitcoin donation / Buy me a coffee](https://github.com/sponsors/tomkwok)
