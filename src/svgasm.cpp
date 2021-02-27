@@ -28,14 +28,13 @@
 #define LOADING_TEXT "Loading ..."
 #define STYLES_EXTRA ""
 #define CLEANER_CMD "svgcleaner --multipass -c \"%s\""
-#define TRACER_CMD "gm convert +matte \"%s\" pgm:- | " \
-    "mkbitmap -x -s 1 - -o - | potrace --svg -o -"
+#define TRACER_CMD "gm convert +matte \"%s\" pgm:- | potrace --svg -o -"
 #define MAGICK_CMD "gm %s"
 
 #define GIF_SUFFIX ".gif"
 #define TEMP_DIR "/tmp/svgasm-XXXXXX"
-#define FRAME_FILENAME "%s/%d.png"
-#define MAGICK_CMD_CONVERT "convert \"%s\" -coalesce +adjoin \"%s/%%d.png\""
+#define FRAME_FILENAME "%s/%d.pgm"
+#define MAGICK_CMD_CONVERT "convert \"%s\" -coalesce +adjoin \"%s/%%d.pgm\""
 #define MAGICK_CMD_IDENTIFY "identify -format \"%%T\\n\" \"%s\""
 
 #define HELP_CONTENT "svgasm [options] infilepath...\n\n" \
@@ -49,7 +48,7 @@
                             "  (default: " END_FRAME ")\n" \
     "  -l <loadingtext>   loading text in output or '' to turn off" \
                             "  (default: '" LOADING_TEXT "')\n" \
-    "  -s <stylesextra>   extra styles definition in output" \
+    "  -s <stylesextra>   extra CSS styles definition in output" \
                             "  (default: '" STYLES_EXTRA "')\n" \
     "  -c <cleanercmd>    command for SVG cleaner with \"%s\"" \
                             "  (default: '" CLEANER_CMD "')\n" \
@@ -309,12 +308,20 @@ int main (int argc, char *argv[]) {
         assert_not_string_npos(pos_tag);
 
         /* find the first occurrence of `>` after `<svg` */
-        size_t pos_start = s.find(">", pos_tag) + 1;
+        size_t pos_start = s.find(">", pos_tag);
         assert_not_string_npos(pos_start);
 
         if (i == 0) {
             /* output opening `<svg>` tag if this file is first in the list */
-            *out << s.substr(0, pos_start);
+            std::string svg_tag = s.substr(0, pos_start);
+            *out << svg_tag;
+
+            /* add `xmlns` attribute if missing (autotrace output) to make SVG valid */
+            if (svg_tag.find("xmlns") == std::string::npos) {
+                *out << " xmlns=\"http://www.w3.org/2000/svg\"";
+            }
+
+            *out << ">";
 
             /* output loading text, which would be set to hidden at the end of file */
             if (loadingtext != "") {

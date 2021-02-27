@@ -31,9 +31,10 @@ If the two versions of animation below are out of sync, try reloading this page 
 
 <details open><summary><b>Show evolution of life GIF example</b></summary>
 <p></p>
+<p>Note that colors are inverted with <code>gm convert -negate</code> to obtain black-on-white image before tracing with <em>potrace</em>. The SVG output is hence black-on-transparent but restyled to white-on-black to match the input GIF.</p>
 <p><code>
-svgasm -t 'gm convert +matte "%s" -negate pgm:- | mkbitmap -x -f 1 -s 1 - -o - | potrace -t 0.4 --svg -o -' -s 'svg {background-color: black} path {fill: white}' examples/_evolution_of_life.gif &gt; examples/evolution_of_life.svg
-</code></p>
+svgasm -t 'gm convert -negate "%s" pgm:- | mkbitmap -x -f 1 -s 1 - -o - | potrace -t 0.4 --svg -o -' -s 'svg {background-color: black} path {fill: white}' examples/_evolution_of_life.gif &gt; examples/evolution_of_life.svg</code>
+</p>
 <table>
 	<tr>
 		<th>Input GIF (6,843 KiB)</th>
@@ -53,8 +54,8 @@ svgasm -t 'gm convert +matte "%s" -negate pgm:- | mkbitmap -x -f 1 -s 1 - -o - |
 <details open><summary><b>Show rotating cross GIF example</b></summary>
 <p></p>
 <p><code>
-svgasm examples/_rotating_cross.gif > examples/rotating_cross.svg
-</code></p>
+svgasm examples/_rotating_cross.gif > examples/rotating_cross.svg</code>
+ (with <em>potrace</em> as tracer by default)</p>
 <table>
 	<tr>
 		<th>Input GIF (665 KiB)</th>
@@ -74,8 +75,8 @@ svgasm examples/_rotating_cross.gif > examples/rotating_cross.svg
 <details><summary><b>Show infinity spiral GIF example</b></summary>
 <p></p>
 <p><code>
-svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -t 0.4 -s 1 - -o - | potrace -t 4 --svg -o -' -s 'svg {background-color: white}' examples/_infinity_spiral.gif &gt; examples/infinity_spiral.svg
-</code></p>
+svgasm -t 'mkbitmap -t 0.4 -s 1 "%s" -o - | potrace -t 4 --svg -o -' -s 'svg {background-color: white}' examples/_infinity_spiral.gif &gt; examples/infinity_spiral.svg</code>
+</p>
 <table>
 	<tr>
 		<th>Input GIF (349 KiB)</th>
@@ -95,7 +96,7 @@ svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -t 0.4 -s 1 - -o - | potrace 
 <details><summary><b>Show NSFW cartoon GIF example</b></summary>
 <p></p>
 <p><code>
-svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -x -t 0.44 -s 1 - -o - | potrace --svg -o -' examples/_mickey_mouse_nsfw.gif &gt; examples/mickey_mouse_nsfw.svg
+svgasm -t 'mkbitmap -x -t 0.44 -s 1 "%s" -o - | potrace --svg -o -' -s 'svg {background-color: #ddd}' examples/_mickey_mouse_nsfw.gif &gt; examples/mickey_mouse_nsfw.svg
 </code></p>
 <table>
 	<tr>
@@ -113,7 +114,9 @@ svgasm -t 'gm convert +matte "%s" pgm:- | mkbitmap -x -t 0.44 -s 1 - -o - | potr
 </table>
 </details>
 
-Note that *potrace* [only natively handles two-valued images](http://potrace.sourceforge.net/faq.html#features), and produces black and white SVG output.
+Note that *potrace* [only natively handles two-valued images](http://potrace.sourceforge.net/faq.html#features). The color values in the SVG output can be specified with extra CSS styles definitions in the `-s` argument to the ***svgasm*** tool as in the evolution of life GIF example. The colors do not have to be black or white or colors in grayscale used in the above examples.
+
+For multi-color support in SVG output, use *autotrace*.
 
 ### SVG animation from multiple still SVGs
 
@@ -150,9 +153,9 @@ Options:
   -i <itercount>     animation iteration count  (default: infinite)
   -e <endframe>      index of frame to stop at in last iteration if not infinite  (default: -1)
   -l <loadingtext>   loading text in output or '' to turn off  (default: 'Loading ...')
-  -s <stylesextra>   extra styles definition in output  (default: '')
+  -s <stylesextra>   extra CSS styles definition in output  (default: '')
   -c <cleanercmd>    command for SVG cleaner with "%s"  (default: 'svgcleaner --multipass -c "%s"')
-  -t <tracercmd>     command for tracer for non-SVG still image with "%s"  (default: 'gm convert +matte "%s" pgm:- | mkbitmap -x -s 1 - -o - | potrace --svg -o -')
+  -t <tracercmd>     command for tracer for non-SVG still image with "%s"  (default: 'gm convert +matte "%s" pgm:- | potrace --svg -o -')
   -m <magickcmd>     command for magick program for GIF animation with %s  (default: 'gm %s')
   -h                 print help information
 ```
@@ -187,7 +190,13 @@ make
 ./svgasm
 ```
 
-***svgasm*** can be executed as a standalone program. However, the only working feature without dependencies is `svgasm [options] input*.svg > output.svg` with automatic fallback to `cat` as cleaner program.
+***svgasm*** can be executed as a standalone program. However, the only working feature without dependencies is `svgasm [options] input*.svg > output.svg` (with automatic fallback to `cat` as dummy cleaner program).
+
+For more features, install runtime dependencies. An example instruction is provided for [Arch Linux](https://archlinux.org/) as follows:
+
+```sh
+sudo pacman -S svgcleaner potrace graphicsmagick
+```
 
 To download the example files in this repository with `git-lfs` installed, run the following commands:
 
@@ -196,16 +205,10 @@ git lfs install
 git lfs pull
 ```
 
-For more features, install runtime dependencies. An example instruction is provided for [Arch Linux](https://archlinux.org/) as follows:
-
-```sh
-sudo pacman -S svgcleaner potrace graphicsmagick
-```
-
 ## Installing optional runtime dependencies
 
 - [*svgo*](https://github.com/svg/svgo): running the command `npm install -g svgo` or `yarn global add svgo`
-- [*autotrace*](https://github.com/autotrace/autotrace): downloading a release binary from the [release page of autotrace](https://github.com/autotrace/autotrace/releases) to a directory listed in `PATH` 
+- [*autotrace*](https://github.com/autotrace/autotrace): downloading a release binary from the [release page of autotrace](https://github.com/autotrace/autotrace/releases) or install with a package manager
 - [*primitive*](https://github.com/fogleman/primitive): running the command `go get -u github.com/fogleman/primitive`
 
 ## Benchmark with different SVG cleaners
@@ -220,18 +223,18 @@ The following are the results of using ***svgasm*** to produce the 41-frame cont
 
 | Command executed									| Output SVG size (gzip) | Real elapsed time |
 |:-------------------------------------------------	| --------------------------- | -----------------:|
-| `svgasm -c 'cat "%s"' [...]`						| 3,143 KiB	(1,145 KiB)       | 0.265 s ± 0.006 s |
+| `svgasm -c 'cat "%s"' [...]`						| 3,143 KiB	(1,145 KiB)       | **0.265 s ± 0.006 s** |
 | `svgasm -c 'svgcleaner --multipass -c "%s"' [...]`	| 2,232 KiB	(992 KiB)         | 0.844 s ± 0.041 s |
-| `svgasm -c 'svgo --multipass -o - "%s"' [...]`		| 2,054 KiB	(884 KiB)         | 34.839 s ± 0.292 s |
+| `svgasm -c 'svgo --multipass -o - "%s"' [...]`		| **2,054 KiB	(884 KiB)**     | 34.839 s ± 0.292 s |
 
 ## Benchmark with GraphicsMagick and ImageMagick
 
-GraphicsMagick is a fork of ImageMagick, and it is reportedly faster in [benchmarks](http://www.graphicsmagick.org/benchmarks.html). The following are the results of using ***svgasm*** to produce the 60-frame rotating cross animation example above on an Intel Core i5 processor with GraphicsMagick and ImageMagick specified as the magick command. Note that the magick program is also present in the tracer command for *potrace*. Identical output is obtained with the two utility programs.
+GraphicsMagick is a fork of ImageMagick, and it is reportedly faster in [benchmarks](http://www.graphicsmagick.org/benchmarks.html). The following are the results of using ***svgasm*** to produce the 60-frame rotating cross animation example above on an Intel Core i5 processor with GraphicsMagick and ImageMagick specified as the magick command. Note that the magick program is also present in the default tracer command for *potrace*. Identical output is obtained with the two utility programs.
 
 | 				  | Command executed											 | Real elapsed time |
 | --------------- | :----------------------------------------------------------- | -----------------:|
-| GraphicsMagick  | `svgasm -c 'cat "%s"' -m 'gm %s' -t 'gm convert "%s" [...]'` | 3.983 s ± 0.028 s |
-| ImageMagick     | `svgasm -c 'cat "%s"' -m '%s' -t 'convert "%s" [...]'`		 | 6.243 s ± 0.057 s |
+| GraphicsMagick  | `svgasm -c 'cat "%s"' -m 'gm %s' -t 'gm convert "%s" [...]'` | **3.205 s ± 0.037 s** |
+| ImageMagick     | `svgasm -c 'cat "%s"' -m '%s' -t 'convert "%s" [...]'`		 | 5.493 s ± 0.041 s |
 
 ## How ***svgasm*** is implemented
 
