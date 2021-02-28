@@ -2,3 +2,4 @@ svgasm
 ._*
 **/.ipynb_checkpoints/*
 svgasm.ipynb
+examples/*.gif.svg

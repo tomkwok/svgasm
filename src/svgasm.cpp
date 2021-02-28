@@ -28,13 +28,13 @@
 #define LOADING_TEXT "Loading ..."
 #define STYLES_EXTRA ""
 #define CLEANER_CMD "svgcleaner --multipass -c \"%s\""
-#define TRACER_CMD "gm convert +matte \"%s\" pgm:- | potrace --svg -o -"
+#define TRACER_CMD "gm convert +matte \"%s\" ppm:- | potrace --svg -o -"
 #define MAGICK_CMD "gm %s"
 
 #define GIF_SUFFIX ".gif"
 #define TEMP_DIR "/tmp/svgasm-XXXXXX"
-#define FRAME_FILENAME "%s/%d.pgm"
-#define MAGICK_CMD_CONVERT "convert \"%s\" -coalesce +adjoin \"%s/%%d.pgm\""
+#define FRAME_FILENAME "%s/%d.ppm"
+#define MAGICK_CMD_CONVERT "convert \"%s\" -coalesce +adjoin \"%s/%%d.ppm\""
 #define MAGICK_CMD_IDENTIFY "identify -format \"%%T\\n\" \"%s\""
 
 #define HELP_CONTENT "svgasm [options] infilepath...\n\n" \
@@ -56,29 +56,28 @@
                             "  (default: '" TRACER_CMD "')\n" \
     "  -m <magickcmd>     command for magick program for GIF animation with %s" \
                             "  (default: '" MAGICK_CMD "')\n" \
+    "  -q                 silence verbose standard error output\n" \
     "  -h                 print help information\n"
 
-inline std::string exec (const char* cmd, bool exit_on_fail) {
-    std::cerr << cmd << std::endl;
-    #ifdef _WIN32
-        #define POPEN _popen
-        #define PCLOSE _pclose
-    #else
-        #define POPEN popen
-        #define PCLOSE pclose
-    #endif
-    char buffer[BUFFER_LEN];
+inline std::string exec (std::string cmd, bool exit_on_fail, bool quiet) {
+    if (!quiet) {
+        std::cerr << cmd << std::endl;
+    }
     std::string result = "";
-    FILE* pipe = POPEN(cmd, "r");
+    if (quiet) {
+        cmd += " 2>/dev/null";
+    }
+    FILE* pipe = popen(cmd.c_str(), "r");
     if (!pipe) {
         std::cerr << "popen() failed.";
     }
+    char buffer[BUFFER_LEN];
     try {
         while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
             result += buffer;
         }
     } catch (...) {
-        PCLOSE(pipe);
+        pclose(pipe);
         if (exit_on_fail) {
             std::cerr << "Command execution failed." << std::endl;
             exit(0);
@@ -86,7 +85,7 @@ inline std::string exec (const char* cmd, bool exit_on_fail) {
             return "";
         }
     }
-    PCLOSE(pipe);
+    pclose(pipe);
     return result;
 }
 
@@ -135,6 +134,8 @@ int main (int argc, char *argv[]) {
         auto_delaysecs = true,
         auto_cleanercmd = true;
 
+    bool quiet = false;
+
     double delaysecs = atof(DELAY_SECS);
 
     std::string
@@ -159,7 +160,7 @@ int main (int argc, char *argv[]) {
     m['t'] = &tracercmd;
     m['m'] = &magickcmd;
 
-    std::string optstring = "hd:";
+    std::string optstring = "hqd:";
     for (std::map<char, std::string*>::iterator it = m.begin(); it != m.end(); ++it) {
         optstring += it->first;
         optstring += ":";
@@ -170,6 +171,8 @@ int main (int argc, char *argv[]) {
         if (c == 'h') {
             std::cout << HELP_CONTENT;
             exit(0);
+        } else if (c == 'q') {
+            quiet = true;
         } else if (c == 'd') {
             double d;
             d = parse_fraction(optarg);
@@ -201,7 +204,8 @@ int main (int argc, char *argv[]) {
     } else {
         outfile.open(outfilepath.c_str());
         if (!outfile.is_open()) {
-            std::cerr << "Output file creation failed." << std::endl;
+            std::cerr << "Output file creation failed. ";
+            std::cerr << "Check if directory exists." << std::endl;
             exit(0);
         }
         out = &outfile;
@@ -222,7 +226,7 @@ int main (int argc, char *argv[]) {
                 int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_IDENTIFY,
                     filepath.c_str());
                 std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
-                std::string s = exec(cmd, true);
+                std::string s = exec(cmd, true, quiet);
                 size_t pos = s.find("\n");
                 assert_not_string_npos(pos);
                 int d = atoi(s.substr(0, pos).c_str());
@@ -240,7 +244,7 @@ int main (int argc, char *argv[]) {
             int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_CONVERT,
                 filepath.c_str(), tempdir);
             std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
-            exec(cmd, true);
+            exec(cmd, true, quiet);
 
             /* count number of files in tempdir, which should be the number of frames */
             int counter = 0;
@@ -292,7 +296,7 @@ int main (int argc, char *argv[]) {
         if (auto_cleanercmd) {
             /* check for cleaner fallback is done only once */
             auto_cleanercmd = false;
-            s = exec(cmd, false);
+            s = exec(cmd, false, quiet);
             if (s == "") {
                 /* change cleaner to fallback and try again */
                 cleanercmd = CLEANER_CMD_FALLBACK;
@@ -300,7 +304,7 @@ int main (int argc, char *argv[]) {
                 continue;
             }
         } else {
-            s = exec(cmd, true);
+            s = exec(cmd, true, quiet);
         }
 
         /* find the first occurrence of `<svg` */

@@ -31,7 +31,7 @@ If the two versions of animation below are out of sync, try reloading this page 
 
 <details open><summary><b>Show evolution of life GIF example</b></summary>
 <p></p>
-<p>Note that colors are inverted with <code>gm convert -negate</code> to obtain black-on-white image before tracing with <em>potrace</em>. The SVG output is hence black-on-transparent but restyled to white-on-black to match the input GIF.</p>
+<p>Note that colors are inverted with <code>gm convert -negate</code> to obtain black-on-white images before tracing with <em>potrace</em>. The SVG output is hence black-on-transparent but restyled to white-on-black to match the input GIF.</p>
 <p><code>
 svgasm -t 'gm convert -negate "%s" pgm:- | mkbitmap -x -f 1 -s 1 - -o - | potrace -t 0.4 --svg -o -' -s 'svg {background-color: black} path {fill: white}' examples/_evolution_of_life.gif &gt; examples/evolution_of_life.svg</code>
 </p>
@@ -96,8 +96,8 @@ svgasm -t 'mkbitmap -t 0.4 -s 1 "%s" -o - | potrace -t 4 --svg -o -' -s 'svg {ba
 <details><summary><b>Show NSFW cartoon GIF example</b></summary>
 <p></p>
 <p><code>
-svgasm -t 'mkbitmap -x -t 0.44 -s 1 "%s" -o - | potrace --svg -o -' -s 'svg {background-color: #ddd}' examples/_mickey_mouse_nsfw.gif &gt; examples/mickey_mouse_nsfw.svg
-</code></p>
+svgasm -t 'mkbitmap -x -t 0.44 -s 1 "%s" -o - | potrace --svg -o -' -s 'svg {background-color: #ddd}' examples/_mickey_mouse_nsfw.gif &gt; examples/mickey_mouse_nsfw.svg</code>
+</p>
 <table>
 	<tr>
 		<th>Input GIF (912 KiB)</th>
@@ -114,9 +114,76 @@ svgasm -t 'mkbitmap -x -t 0.44 -s 1 "%s" -o - | potrace --svg -o -' -s 'svg {bac
 </table>
 </details>
 
-Note that *potrace* [only natively handles two-valued images](http://potrace.sourceforge.net/faq.html#features). The color values in the SVG output can be specified with extra CSS styles definitions in the `-s` argument to the ***svgasm*** tool as in the evolution of life GIF example. The colors do not have to be black or white or colors in grayscale used in the above examples.
+Note that *potrace* [only natively handles two-valued images](http://potrace.sourceforge.net/faq.html#features). The color values in the SVG output can be specified with extra CSS styles definitions in the `-s` argument to the ***svgasm*** tool as in the command for the evolution of life GIF example. The colors do not have to be black or white or colors in grayscale used in the above examples.
 
-For multi-color support in SVG output, use *autotrace*.
+All of the above examples traced with *potrace* can also be traced with *autotrace* with less configuration but also less accurate (sometimes funky) shapes in results, which can be viewed in [examples/autotrace\_results.ipynb](examples/autotrace_results.ipynb).
+
+Use of multiple colors in SVG output is supported natively in *autotrace* but gradients are hard for any tracer.
+
+<details open><summary><b>Show Spongebob GIF example</b></summary>
+<p></p>
+<p><code>
+svgasm -t 'autotrace --output-format svg --color-count 64 --despeckle-level 10 --despeckle-tightness 0.8 --remove-adjacent-corners "%s"' examples/_spongebob.gif &gt; examples/spongebob.svg</code>
+</p>
+<table>
+	<tr>
+		<th>Input GIF (426 KiB)</th>
+		<th>Output SVG (888 KiB → 259 KiB gzipped)</th>
+	</tr>
+	<tr>
+		<td width="50%">
+			<img src="examples/_spongebob.gif" width="100%">
+		</td>
+		<td width="50%">
+			<img src="examples/spongebob.svg" width="100%">
+		</td>
+	</tr>
+</table>
+</details>
+
+<details open><summary><b>Show anime GIF example</b></summary>
+<p></p>
+<p><code>
+svgasm -t 'autotrace --output-format svg --color-count 120 --despeckle-level 16 --despeckle-tightness 1.5 --tangent-surround 1 --remove-adjacent-corners "%s"' -s 'svg {background-color: gray}' examples/_anime.gif &gt; examples/anime.svg</code>
+</p>
+<table>
+	<tr>
+		<th>Input GIF (1,616 KiB)</th>
+		<th>Output SVG (1,268 KiB → 496 KiB gzipped)</th>
+	</tr>
+	<tr>
+		<td width="50%">
+			<img src="examples/_anime.gif" width="100%">
+		</td>
+		<td width="50%">
+			<img src="examples/anime.svg" width="100%">
+		</td>
+	</tr>
+</table>
+</details>
+
+While *primitive* is not a tracer, it can be used for raster-to-vector conversion with aesthetically pleasing results.
+
+<details open><summary><b>Show lions GIF example</b></summary>
+<p></p>
+<p><code>
+svgasm -t 'gm convert "%s" png:- | primitive -i - -o - -n 250' examples/_lions.gif &gt; examples/lions.svg</code>
+</p>
+<table>
+	<tr>
+		<th>Input GIF (2,180 KiB)</th>
+		<th>Output SVG (673 KiB → 193 KiB gzipped)</th>
+	</tr>
+	<tr>
+		<td width="50%">
+			<img src="examples/_lions.gif" width="100%">
+		</td>
+		<td width="50%">
+			<img src="examples/lions.svg" width="100%">
+		</td>
+	</tr>
+</table>
+</details>
 
 ### SVG animation from multiple still SVGs
 
@@ -155,8 +222,9 @@ Options:
   -l <loadingtext>   loading text in output or '' to turn off  (default: 'Loading ...')
   -s <stylesextra>   extra CSS styles definition in output  (default: '')
   -c <cleanercmd>    command for SVG cleaner with "%s"  (default: 'svgcleaner --multipass -c "%s"')
-  -t <tracercmd>     command for tracer for non-SVG still image with "%s"  (default: 'gm convert +matte "%s" pgm:- | potrace --svg -o -')
+  -t <tracercmd>     command for tracer for non-SVG still image with "%s"  (default: 'gm convert +matte "%s" ppm:- | potrace --svg -o -')
   -m <magickcmd>     command for magick program for GIF animation with %s  (default: 'gm %s')
+  -q                 silence verbose standard error output
   -h                 print help information
 ```
 
@@ -293,9 +361,8 @@ Reduce output generation time
 
 Improve terminal I/O
 - Record and print SVG output file size if output is directed to stdout.
-- Support building and running on Windows (`cat`, `getopt.h`, `dirent.h`).
+- Support building and running on Windows (`popen`, `/dev/null`, `cat`, `getopt.h`, `dirent.h`).
 - Command line argument input sanitization.
-- Argument option `-q` for quietness to suppress standard error output.
 - Progress bar for processing input files.
 
 Add more functionalities
