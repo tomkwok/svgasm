@@ -319,6 +319,11 @@ int main (int argc, char *argv[]) {
                 cleanercmd.c_str(), STDIO_NAME);
         }
 
+        /* print progress over frames */
+        if (!a['q']) {
+            std::cerr << "[" << i << "/" << len << "] ";
+        }
+
         std::string s;
         if (!a['c']) {
             /* check for cleaner fallback is done only once */

@@ -359,7 +359,6 @@ Reduce output generation time
 Improve terminal I/O
 - Support building and running on Windows (`popen`, `/dev/stdout`, `/dev/null`, `cat`, `getopt.h`, `dirent.h`).
 - Command line argument input sanitization.
-- Progress bar for processing input files.
 
 Add more functionalities
 - A GUI front-end for the *svgasm* command-line tool.
