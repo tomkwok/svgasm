@@ -3,7 +3,7 @@ name: svgasm
 on: [push, pull_request]
 
 jobs:
-  build:
+  build_linux:
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
     strategy:
@@ -11,10 +11,37 @@ jobs:
       matrix:
         config:
           - {
-            name: "Ubuntu Latest GCC",
+            name: "Ubuntu Latest GCC with SonarCloud",
             os: ubuntu-latest,
             cc: "gcc", cxx: "g++"
           }
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build
+        shell: bash
+        run: |
+          curl -L -O https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
+          unzip -o build-wrapper-linux-x86.zip
+          build-wrapper-linux-x86/build-wrapper-linux-x86-64 --out-dir cfamily-output make all -j$(nproc)
+
+      - name: SonarCloud
+        env:
+          SONAR_SCANNER_VERSION: 4.6.0.2311
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: bash
+        run: |
+          curl -L -O https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip
+          unzip sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip
+          sonar-scanner-${SONAR_SCANNER_VERSION}-linux/bin/sonar-scanner -Dsonar.host.url=https://sonarcloud.io -Dsonar.cfamily.threads=$(nproc) -Dsonar.cfamily.cache.enabled=false -Dsonar.branch.name=${GITHUB_REF##*/} -Dsonar.organization=${GITHUB_ACTOR} -Dsonar.projectKey=${GITHUB_REPOSITORY//\//_} -Dsonar.cfamily.build-wrapper-output=cfamily-output -X
+
+  build_macos:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
           - {
             name: "macOS Latest Clang",
             os: macOS-latest,
@@ -23,6 +50,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run Makefile
-        env:
-          TOKEN: ${{ secrets.TOKEN }}
         run: make all

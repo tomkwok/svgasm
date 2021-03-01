@@ -1,6 +1,9 @@
 # *svgasm*
 
-[![Sponsor][img_sponsor]][sponsor] &nbsp; [![Build status][img_build_status]][build_status] &nbsp; [![Language grade: C/C++][img_lgtm]][lgtm] &nbsp; [![License][img_license]][license]
+[![Sponsor][img_sponsor]][sponsor] &nbsp; [![Build status][img_build_status]][build_status] &nbsp; [![Language grade: C/C++][img_lgtm]][lgtm] &nbsp; [![Technical debt][img_sonar]][sonar] &nbsp; [![License][img_license]][license]
+
+[img_sponsor]: readme/badge_sponsor_animation.svg
+[sponsor]: https://github.com/sponsors/tomkwok
 
 [img_build_status]: https://github.com/tomkwok/svgasm/workflows/svgasm/badge.svg
 [build_status]: https://github.com/tomkwok/svgasm/actions?query=branch%3Amaster
@@ -8,11 +11,11 @@
 [img_lgtm]: https://img.shields.io/lgtm/grade/cpp/g/tomkwok/svgasm.svg?logo=lgtm&logoWidth=18
 [lgtm]: https://lgtm.com/projects/g/tomkwok/svgasm/latest/files/
 
+[img_sonar]: https://img.shields.io/sonar/tech_debt/tomkwok_svgasm?logo=sonarsource&server=https%3A%2F%2Fsonarcloud.io
+[sonar]: https://sonarcloud.io/dashboard?id=tomkwok_svgasm
+
 [img_license]: https://img.shields.io/github/license/tomkwok/svgasm?color=green&cacheSeconds=3600
 [license]: LICENSE.md
-
-[img_sponsor]: readme/badge_sponsor_animation.svg
-[sponsor]: https://github.com/sponsors/tomkwok
 
 [***svgasm***](https://github.com/tomkwok/svgasm) is a proof-of-concept SVG assembler to generate a self-contained animated SVG file from multiple still SVG files with CSS keyframes animation to play frames in sequence. Steps listed in reverse order of execution:
 
