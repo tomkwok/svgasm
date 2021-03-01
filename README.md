@@ -235,7 +235,7 @@ Generates output *animation.svg* from *input1.svg*, *input2.svg* and *input3.svg
 - `svgasm -d 1/30 -l '' intro.jpg frame*.png > animation.svg`  
 Generates output *animation.svg* from *intro.jpg* and wild card *frame\*.png* that animates with 30 frames per second, iterates infinitely, and with loading text turned off.
 - `svgasm animation1.gif animation2.gif > animation.svg`  
-Generates output *animation.svg* from *animation1.gif* and *animation2.gif* that animates with the same time delay as the first GIF file.
+Generates output *animation.svg* from *animation1.gif* and *animation2.gif* that animates with the same time delay and iteration count as the first GIF file.
 
 
 ## Installing on macOS
@@ -349,11 +349,8 @@ GraphicsMagick is a fork of ImageMagick, and it is reportedly faster in [benchma
 
 ## To-dos
 
-Update README.md
-- Add SVG file size after compression with [Brotli](https://github.com/google/brotli) to benchmark results.
-
 Reduce output file size
-- Use all alphanumeric characters in prefix for element IDs.
+- Use all alphanumeric characters with base-36 encoding in prefix for element IDs.
 - De-duplication of repeated elements across frames (needs full parser).
 
 Reduce output generation time
@@ -367,7 +364,6 @@ Improve terminal I/O
 Add more functionalities
 - A GUI front-end for the *svgasm* command-line tool.
 - Support configurable output size and viewport bounds.
-- Support automatic iteration count extraction from GIF files.
 - Support frame extraction from animated PNG and video files.
 - Assembler to combine two or more SVG animations in sequence.
 - Disassembler for SVG animation created with *svgasm*.

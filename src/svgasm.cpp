@@ -35,7 +35,7 @@
 #define TEMP_DIR "/tmp/svgasm-XXXXXX"
 #define FRAME_FILENAME "%s/%d.ppm"
 #define MAGICK_CMD_CONVERT "convert \"%s\" -coalesce +adjoin \"%s/%%d.ppm\""
-#define MAGICK_CMD_IDENTIFY "identify -format \"%%T\\n\" \"%s\""
+#define MAGICK_CMD_IDENTIFY "identify -verbose \"%s\""
 
 #define HELP_CONTENT "svgasm [options] infilepath...\n\n" \
     "Options:\n" \
@@ -59,7 +59,7 @@
     "  -q                 silence verbose standard error output\n" \
     "  -h                 print help information\n"
 
-inline std::string exec (std::string cmd, bool exit_on_fail, bool quiet) {
+inline std::string exec (std::string cmd, bool exit_on_fail, bool quiet, int limit) {
     if (!quiet) {
         std::cerr << cmd << std::endl;
     }
@@ -73,8 +73,15 @@ inline std::string exec (std::string cmd, bool exit_on_fail, bool quiet) {
     }
     char buffer[BUFFER_LEN];
     try {
+        int counter = 0;
         while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
             result += buffer;
+            if (limit > 0) {
+                counter += BUFFER_LEN;
+                if (counter >= limit) {
+                    break;
+                }
+            }
         }
     } catch (...) {
         pclose(pipe);
@@ -122,6 +129,17 @@ inline double parse_fraction (std::string s) {
     }
 }
 
+inline int parse_identify_attribute (std::string& s, std::string name) {
+    size_t pos_start = s.find(":", s.find("  " + name));
+    size_t pos_end = s.find("\n", pos_start);
+    if (pos_end == std::string::npos) {
+        return 0;
+    } else {
+        /* atoi() can parse integer in output of ImageMagick (e.g. 6 in "6x100") */
+        return atoi(s.substr(pos_start + 1, pos_end).c_str());
+    }
+}
+
 inline void assert_not_string_npos (size_t& pos) {
     if (pos == std::string::npos) {
         std::cerr << "Input file parsing failed." << std::endl;
@@ -130,11 +148,12 @@ inline void assert_not_string_npos (size_t& pos) {
 }
 
 int main (int argc, char *argv[]) {
-    bool
-        auto_delaysecs = true,
-        auto_cleanercmd = true;
-
-    bool quiet = false;
+    /* initialize value only for keys that we care about in map of whether arg is set */
+    std::map<char, bool> a;
+    a['d'] = false;
+    a['i'] = false;
+    a['c'] = false;
+    a['q'] = false;
 
     double delaysecs = atof(DELAY_SECS);
 
@@ -172,22 +191,20 @@ int main (int argc, char *argv[]) {
             std::cout << HELP_CONTENT;
             exit(0);
         } else if (c == 'q') {
-            quiet = true;
+            a[c] = true;
         } else if (c == 'd') {
             double d;
             d = parse_fraction(optarg);
             if (d > 0.0) {
                 delaysecs = d;
-                auto_delaysecs = false;
+                a[c] = true;
             } else {
                 std::cerr << "Argument -d parsing failed." << std::endl;
                 exit(0);
             }
         } else {
+            a[c] = true;
             *m[c] = optarg;
-            if (c == 'c') {
-                auto_cleanercmd = false;
-            }
         }
     }
 
@@ -197,6 +214,7 @@ int main (int argc, char *argv[]) {
         exit(0);
     }
 
+    /* std::ostream pointer was created to point to both std::cout and std::ofstream */
     std::ostream* out;
     std::ofstream outfile;
     if (outfilepath == STDIO_NAME) {
@@ -219,18 +237,28 @@ int main (int argc, char *argv[]) {
             char cmd_args[BUFFER_LEN];
             char cmd[BUFFER_LEN];
 
-            if (auto_delaysecs) {
-                /* get delay from the first GIF file in args rather than the last */
-                auto_delaysecs = false;
+            if (!a['c'] || !a['i']) {
+                /* get delay and iterations from the first GIF file in input list */
                 int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_IDENTIFY,
                     filepath.c_str());
                 std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
-                std::string s = exec(cmd, true, quiet);
-                size_t pos = s.find("\n");
-                assert_not_string_npos(pos);
-                int d = atoi(s.substr(0, pos).c_str());
-                if (d > 0) {
-                    delaysecs = d * 0.01;
+                std::string s = exec(cmd, true, a['q'], 102400);
+
+                if (!a['c']) {
+                    a['c'] = true;
+                    int d = parse_identify_attribute(s, "Delay");
+                    if (d > 0) {
+                        delaysecs = d * 0.01;
+                    }
+                }
+                if (!a['i']) {
+                    a['i'] = true;
+                    int ic = parse_identify_attribute(s, "Iterations");
+                    if (ic > 0) {
+                        std::ostringstream ss;
+                        ss << ic;
+                        itercount = ss.str();
+                    }
                 }
             }
 
@@ -243,7 +271,7 @@ int main (int argc, char *argv[]) {
             int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_CONVERT,
                 filepath.c_str(), tempdir);
             std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
-            exec(cmd, true, quiet);
+            exec(cmd, true, a['q'], 0);
 
             /* count number of files in tempdir, which should be the number of frames */
             int counter = 0;
@@ -292,10 +320,10 @@ int main (int argc, char *argv[]) {
         }
 
         std::string s;
-        if (auto_cleanercmd) {
+        if (!a['c']) {
             /* check for cleaner fallback is done only once */
-            auto_cleanercmd = false;
-            s = exec(cmd, false, quiet);
+            a['c'] = true;
+            s = exec(cmd, false, a['q'], 0);
             if (s == "") {
                 /* change cleaner to fallback and try again */
                 cleanercmd = CLEANER_CMD_FALLBACK;
@@ -303,7 +331,7 @@ int main (int argc, char *argv[]) {
                 continue;
             }
         } else {
-            s = exec(cmd, true, quiet);
+            s = exec(cmd, true, a['q'], 0);
         }
 
         /* find the first occurrence of `<svg` */
