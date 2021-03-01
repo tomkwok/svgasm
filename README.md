@@ -360,8 +360,7 @@ Reduce output generation time
 - Parallelize cleaner and tracer execution for input files on multiple threads.
 
 Improve terminal I/O
-- Record and print SVG output file size if output is directed to stdout.
-- Support building and running on Windows (`popen`, `/dev/null`, `cat`, `getopt.h`, `dirent.h`).
+- Support building and running on Windows (`popen`, `/dev/stdout`, `/dev/null`, `cat`, `getopt.h`, `dirent.h`).
 - Command line argument input sanitization.
 - Progress bar for processing input files.
 

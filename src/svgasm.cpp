@@ -200,16 +200,15 @@ int main (int argc, char *argv[]) {
     std::ostream* out;
     std::ofstream outfile;
     if (outfilepath == STDIO_NAME) {
-        out = &std::cout;
-    } else {
-        outfile.open(outfilepath.c_str());
-        if (!outfile.is_open()) {
-            std::cerr << "Output file creation failed. ";
-            std::cerr << "Check if directory exists." << std::endl;
-            exit(0);
-        }
-        out = &outfile;
+        outfilepath = "/dev/stdout";
     }
+    outfile.open(outfilepath.c_str());
+    if (!outfile.is_open()) {
+        std::cerr << "Output file creation failed. ";
+        std::cerr << "Check if directory exists." << std::endl;
+        exit(0);
+    }
+    out = &outfile;
 
     std::vector<std::string> filepaths;
     for (int i = optind; i < argc; i++) {
@@ -447,9 +446,7 @@ int main (int argc, char *argv[]) {
 
     std::cerr << "SVG animation output saved to " << outfilepath;
     std::cerr << std::fixed << std::setprecision(2);
-    if (outfilepath != STDIO_NAME) {
-        std::cerr << " (" << (out->tellp() / 1024.0) << " KiB) " << std::endl;
-    }
+    std::cerr << " (" << (out->tellp() / 1024.0) << " KiB) " << std::endl;
 
     return 0;
 }
