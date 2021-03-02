@@ -33,7 +33,7 @@
 
 #define GIF_SUFFIX ".gif"
 #define TEMP_DIR "/tmp/svgasm-XXXXXX"
-#define FRAME_FILENAME "%s/%d.ppm"
+#define FRAME_FILENAME "%s/%zu.ppm"
 #define MAGICK_CMD_CONVERT "convert \"%s\" -coalesce +adjoin \"%s/%%d.ppm\""
 #define MAGICK_CMD_IDENTIFY "identify -verbose \"%s\""
 
@@ -68,7 +68,7 @@ inline std::string exec (std::string cmd, bool exit_on_fail, bool quiet, int lim
         cmd += " 2>/dev/null";
     }
     FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) {
+    if (pipe == 0) {
         std::cerr << "popen() failed.";
     }
     char buffer[BUFFER_LEN];
@@ -105,7 +105,7 @@ inline void string_replace (std::string& s, const std::string& search,
     }
 }
 
-inline bool string_endswith_lowercase (std::string& s, const std::string& suffix) {
+inline bool string_endswith_lowercase (const std::string& s, const std::string& suffix) {
     size_t a = s.length();
     size_t b = suffix.length();
     if (a < b) {
@@ -118,7 +118,7 @@ inline bool string_endswith_lowercase (std::string& s, const std::string& suffix
     }
 }
 
-inline double parse_fraction (std::string s) {
+inline double parse_fraction (const std::string& s) {
     size_t pos = s.find("/");
     if (pos == std::string::npos) {
         return atof(s.c_str());
@@ -129,7 +129,7 @@ inline double parse_fraction (std::string s) {
     }
 }
 
-inline int parse_identify_attribute (std::string& s, std::string name) {
+inline int parse_identify_attribute (const std::string& s, const std::string& name) {
     size_t pos_start = s.find(":", s.find("  " + name));
     size_t pos_end = s.find("\n", pos_start);
     if (pos_end == std::string::npos) {
@@ -140,7 +140,7 @@ inline int parse_identify_attribute (std::string& s, std::string name) {
     }
 }
 
-inline void assert_not_string_npos (size_t& pos) {
+inline void assert_not_string_npos (const size_t& pos) {
     if (pos == std::string::npos) {
         std::cerr << "Input file parsing failed." << std::endl;
         exit(0);
@@ -157,16 +157,15 @@ int main (int argc, char *argv[]) {
 
     double delaysecs = atof(DELAY_SECS);
 
-    std::string
-        outfilepath = STDIO_NAME,
-        idprefix = ID_PREFIX,
-        itercount = ITER_COUNT,
-        endframe = END_FRAME,
-        loadingtext = LOADING_TEXT,
-        stylesextra = STYLES_EXTRA,
-        cleanercmd = CLEANER_CMD,
-        tracercmd = TRACER_CMD,
-        magickcmd = MAGICK_CMD;
+    std::string outfilepath = STDIO_NAME;
+    std::string idprefix = ID_PREFIX;
+    std::string itercount = ITER_COUNT;
+    std::string endframe = END_FRAME;
+    std::string loadingtext = LOADING_TEXT;
+    std::string stylesextra = STYLES_EXTRA;
+    std::string cleanercmd = CLEANER_CMD;
+    std::string tracercmd = TRACER_CMD;
+    std::string magickcmd = MAGICK_CMD;
 
     std::map<char, std::string*> m;
     m['o'] = &outfilepath;
@@ -185,16 +184,16 @@ int main (int argc, char *argv[]) {
         optstring += ":";
     }
 
-    int c;
-    while ((c = getopt(argc, argv, optstring.c_str())) != -1) {
+    char c;
+    while ((c = (char) getopt(argc, argv, optstring.c_str())) != -1) {
         if (c == 'h') {
-            std::cout << HELP_CONTENT;
+            std::cerr << HELP_CONTENT;
             exit(0);
         } else if (c == 'q') {
             a[c] = true;
         } else if (c == 'd') {
-            double d;
-            d = parse_fraction(optarg);
+            std::string s = optarg;
+            double d = parse_fraction(s);
             if (d > 0.0) {
                 delaysecs = d;
                 a[c] = true;
@@ -208,10 +207,78 @@ int main (int argc, char *argv[]) {
         }
     }
 
-    /* ensure at least one file in arguments */
-    if (argc - optind < 1) {
-        std::cout << HELP_CONTENT;
-        exit(0);
+    std::vector<std::string> filepaths;
+    for (int i = optind; i < argc; i++) {
+        std::string filepath = argv[i];
+
+        /* run GraphicsMagick or ImageMagick on a GIF file to convert it to frames */
+        if (string_endswith_lowercase(filepath, GIF_SUFFIX)) {
+            char cmd_args[BUFFER_LEN];
+            char cmd[BUFFER_LEN];
+
+            std::string s;
+            if (!a['c'] || !a['i']) {
+                /* get delay and iterations from the first GIF file in input list */
+                int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_IDENTIFY,
+                    filepath.c_str());
+                std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
+                s = exec(cmd, true, a['q'], 102400);
+            }
+
+            if (!a['c']) {
+                a['c'] = true;
+                int d = parse_identify_attribute(s, "Delay");
+                if (d > 0) {
+                    delaysecs = d * 0.01;
+                }
+            }
+
+            if (!a['i']) {
+                a['i'] = true;
+                int ic = parse_identify_attribute(s, "Iterations");
+                if (ic > 0) {
+                    std::ostringstream ss;
+                    ss << ic;
+                    itercount = ss.str();
+                }
+            }
+
+            char tempdir[] = TEMP_DIR;
+            if (mkdtemp(tempdir) == NULL) {
+                std::cerr << "Temporary directory creation failed." << std::endl;
+                exit(0);
+            }
+
+            int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_CONVERT,
+                filepath.c_str(), tempdir);
+            std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
+            exec(cmd, true, a['q'], 0);
+
+            /* count number of files in tempdir, which should be the number of frames */
+            size_t counter = 0;
+            DIR *dir;
+            dir = opendir(tempdir);
+            if (dir == 0) {
+                std::cerr << "Temporary directory access failed." << std::endl;
+                exit(0);
+            }
+            struct dirent *d;
+            while ((d = readdir(dir)) != NULL) {
+                if (d->d_name[0] != '.') {
+                    counter++;
+                }
+            }
+            closedir(dir);
+
+            /* generate filenames in order of index */
+            for (size_t j = 0; j < counter; j++) {
+                char filename[BUFFER_LEN];
+                std::snprintf(filename, BUFFER_LEN, FRAME_FILENAME, tempdir, j);
+                filepaths.push_back(filename);
+            }
+        } else {
+            filepaths.push_back(filepath);
+        }
     }
 
     /* std::ostream pointer was created to point to both std::cout and std::ofstream */
@@ -228,83 +295,18 @@ int main (int argc, char *argv[]) {
     }
     out = &outfile;
 
-    std::vector<std::string> filepaths;
-    for (int i = optind; i < argc; i++) {
-        std::string filepath = argv[i];
-
-        /* run GraphicsMagick or ImageMagick on a GIF file to convert it to frames */
-        if (string_endswith_lowercase(filepath, GIF_SUFFIX)) {
-            char cmd_args[BUFFER_LEN];
-            char cmd[BUFFER_LEN];
-
-            if (!a['c'] || !a['i']) {
-                /* get delay and iterations from the first GIF file in input list */
-                int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_IDENTIFY,
-                    filepath.c_str());
-                std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
-                std::string s = exec(cmd, true, a['q'], 102400);
-
-                if (!a['c']) {
-                    a['c'] = true;
-                    int d = parse_identify_attribute(s, "Delay");
-                    if (d > 0) {
-                        delaysecs = d * 0.01;
-                    }
-                }
-                if (!a['i']) {
-                    a['i'] = true;
-                    int ic = parse_identify_attribute(s, "Iterations");
-                    if (ic > 0) {
-                        std::ostringstream ss;
-                        ss << ic;
-                        itercount = ss.str();
-                    }
-                }
-            }
-
-            char tempdir[] = TEMP_DIR;
-            if (mkdtemp(tempdir) == NULL) {
-                std::cerr << "Temporary directory creation failed." << std::endl;
-                exit(0);
-            }
-
-            int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_CONVERT,
-                filepath.c_str(), tempdir);
-            std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
-            exec(cmd, true, a['q'], 0);
-
-            /* count number of files in tempdir, which should be the number of frames */
-            int counter = 0;
-            DIR *dir;
-            dir = opendir(tempdir);
-            if (!dir) {
-                std::cerr << "Temporary directory access failed." << std::endl;
-                exit(0);
-            }
-            struct dirent *d;
-            while ((d = readdir(dir)) != NULL) {
-                if (d->d_name[0] != '.') {
-                    counter++;
-                }
-            }
-            closedir(dir);
-
-            /* generate filenames in order of index */
-            for (int j = 0; j < counter; j++) {
-                char filename[BUFFER_LEN];
-                std::snprintf(filename, BUFFER_LEN, FRAME_FILENAME, tempdir, j);
-                filepaths.push_back(filename);
-            }
-        } else {
-            filepaths.push_back(filepath);
-        }
+    size_t len = filepaths.size();
+    /* ensure at least one file in `filepaths` and make static analysis pass */
+    if (len == 0) {
+        std::cerr << HELP_CONTENT;
+        exit(0);
     }
 
     std::string closing_tags;
-    int len = filepaths.size();
-    for (int i = 0; i < len; i++) {
+    size_t i = 0;
+    while (i < len) {
         char cmd[BUFFER_LEN];
-        std::string& filepath = filepaths[i];
+        const std::string& filepath = filepaths[i];
 
         /* run SVG cleaner on input file to obtain a clean optimized file
             without unnecessary white spaces in tags */
@@ -315,7 +317,7 @@ int main (int argc, char *argv[]) {
             pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos,
                 tracercmd.c_str(), filepath.c_str());
             pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos, " | ");
-            pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos,
+            std::snprintf(&cmd[pos], BUFFER_LEN-pos,
                 cleanercmd.c_str(), STDIO_NAME);
         }
 
@@ -392,20 +394,23 @@ int main (int argc, char *argv[]) {
 
         /* add prefix to element IDs to avoid conflict since IDs are global in an SVG
             and update all links to an element with prefixed element IDs */
-        const std::string attrs[] = {
-            " id=\"", 
-            " href=\"#", 
-            " xlink:href=\"#", 
-            "=\"url(#", /* example attributes: fill, clip-path */
-        };
-        for (size_t j = 0; j < sizeof(attrs) / sizeof(attrs[0]); j++) {
+        std::vector<std::string> attrs;
+        attrs.push_back(" id=\"");
+        attrs.push_back(" href=\"#");
+        attrs.push_back(" xlink:href=\"#");
+        attrs.push_back("=\"url(#");  /* example attrs: fill, clip-path */
+
+        for (std::vector<std::string>::iterator it = attrs.begin();
+                it != attrs.end(); ++it) {
             std::ostringstream ss;
-            ss << attrs[j] << idprefix << i;
-            string_replace(s, attrs[j], ss.str());
+            ss << *it << idprefix << i;
+            string_replace(s, *it, ss.str());
         }
 
         /* output frame wrapped in a `<g>` tag for grouping */
         *out << "<g id=\"" << idprefix << i << "\">" << s << "</g>";
+
+        i++;
     }
 
     /* output CSS animation definitions with no unnecessary whitespace
@@ -414,21 +419,21 @@ int main (int argc, char *argv[]) {
     *out << "<defs><style type=\"text/css\">";
     *out << stylesextra;
 
-    int e = len;
+    size_t e = len;
     /* end frame index can be defined for non-infinite animation */
     if (endframe != "" && itercount != "infinite") {
         /* add length to negative end frame index and wrap out-of-bound index */
         e = (atoi(endframe.c_str()) + len) % len;
     }
 
-    for (int j = 0; j < len; j++) {
+    for (size_t j = 0; j < len; j++) {
         if (j > 0) {
             *out << ",";
         }
         *out << "#" << idprefix << j;
     }
-    *out << "{animation:";
-    *out << (delaysecs * len) << "s linear " << idprefix << "k " << itercount << "}";
+    *out << "{animation:" << (delaysecs * (double) len) << "s linear ";
+    *out << idprefix << "k " << itercount << "}";
 
     int ic;
     if (e < len) {
@@ -437,7 +442,7 @@ int main (int argc, char *argv[]) {
             ic = 1;
         }
         /* each of the frames after end frame has its itercount decremented by 1 */ 
-        for (int j = e + 1; j < len; j++) {
+        for (size_t j = e + 1; j < len; j++) {
             if (j > e + 1) {
                 *out << ",";
             }
@@ -449,24 +454,24 @@ int main (int argc, char *argv[]) {
 
         /* animation for end frame has two parts (loop and once forward) */
         *out << "#" << idprefix << e;
-        *out << "{animation:";
-        *out << (delaysecs * len) << "s linear " << idprefix << "k " << (ic - 1) << ",";
+        *out << "{animation:" << (delaysecs * (double) len) << "s linear ";
+        *out << idprefix << "k " << (ic - 1) << ",";
         *out << "0s linear forwards " << idprefix << "e}";
         *out << "@keyframes " << idprefix << "e{to{visibility:visible}}";
     }
 
-    for (int j = 0; j < len; j++) {
+    for (size_t j = 0; j < len; j++) {
         *out << "#" << idprefix << j << "{";
-        *out << "animation-delay:" << (delaysecs * j) << "s";
+        *out << "animation-delay:" << (delaysecs * (double) j) << "s";
         if (j == e) {
             /* add delay component for second animation for end frame */
-            *out << "," << (delaysecs * (len * (ic - 1) + e)) << "s";
+            *out << "," << (delaysecs * ((double) len * (ic - 1) + (double) e)) << "s";
         }
         *out << "}";
     }
     *out << "@keyframes " << idprefix << "k{" << std::fixed;
-    *out << "0%," << (100.0 / len) << "%{visibility:visible}";
-    *out << ((100.0 + TRANSITION_PERCENT / delaysecs) / len) << "%,100%";
+    *out << "0%," << (100.0 / (double) len) << "%{visibility:visible}";
+    *out << ((100.0 + TRANSITION_PERCENT / delaysecs) / (double) len) << "%,100%";
     *out << "{visibility:hidden}}";
 
     /* hide loading text since all elements have loaded before this style is parsed */
@@ -479,7 +484,7 @@ int main (int argc, char *argv[]) {
 
     std::cerr << "SVG animation output saved to " << outfilepath;
     std::cerr << std::fixed << std::setprecision(2);
-    std::cerr << " (" << (out->tellp() / 1024.0) << " KiB) " << std::endl;
+    std::cerr << " (" << ((double) out->tellp() / 1024.0) << " KiB) " << std::endl;
 
     return 0;
 }
