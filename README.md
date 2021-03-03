@@ -269,13 +269,6 @@ For more features, install runtime dependencies. An example instruction is provi
 sudo pacman -S svgcleaner potrace graphicsmagick
 ```
 
-To download the example files in this repository with `git-lfs` installed, run the following commands:
-
-```sh
-git lfs install
-git lfs pull
-```
-
 ## Installing optional runtime dependencies
 
 - [*svgo*](https://github.com/svg/svgo): running the command `npm install -g svgo` or `yarn global add svgo`

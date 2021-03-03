@@ -36,6 +36,7 @@
 #define FRAME_FILENAME "%s/%zu.ppm"
 #define MAGICK_CMD_CONVERT "convert \"%s\" -coalesce +adjoin \"%s/%%d.ppm\""
 #define MAGICK_CMD_IDENTIFY "identify -verbose \"%s\""
+#define MAGICK_CMD_IDENTIFY_LIMIT 102400
 
 #define HELP_CONTENT "svgasm [options] infilepath...\n\n" \
     "Options:\n" \
@@ -59,7 +60,8 @@
     "  -q                 silence verbose standard error output\n" \
     "  -h                 print help information\n"
 
-inline std::string exec (std::string cmd, bool exit_on_fail, bool quiet, int limit) {
+inline std::string exec (std::string cmd, const bool exit_on_fail,
+                            const bool quiet, const int limit) {
     if (!quiet) {
         std::cerr << cmd << std::endl;
     }
@@ -106,8 +108,8 @@ inline void string_replace (std::string& s, const std::string& search,
 }
 
 inline bool string_endswith_lowercase (const std::string& s, const std::string& suffix) {
-    size_t a = s.length();
-    size_t b = suffix.length();
+    const size_t a = s.length();
+    const size_t b = suffix.length();
     if (a < b) {
         return false;
     } else {
@@ -119,19 +121,19 @@ inline bool string_endswith_lowercase (const std::string& s, const std::string& 
 }
 
 inline double parse_fraction (const std::string& s) {
-    size_t pos = s.find("/");
+    const size_t pos = s.find("/");
     if (pos == std::string::npos) {
         return atof(s.c_str());
     } else {
-        double a = atof(s.substr(0, pos).c_str());
-        double b = atof(s.substr(pos+1).c_str());
+        const double a = atof(s.substr(0, pos).c_str());
+        const double b = atof(s.substr(pos+1).c_str());
         return a / b;
     }
 }
 
 inline int parse_identify_attribute (const std::string& s, const std::string& name) {
-    size_t pos_start = s.find(":", s.find("  " + name));
-    size_t pos_end = s.find("\n", pos_start);
+    const size_t pos_start = s.find(":", s.find("  " + name));
+    const size_t pos_end = s.find("\n", pos_start);
     if (pos_end == std::string::npos) {
         return 0;
     } else {
@@ -208,7 +210,7 @@ int main (int argc, char *argv[]) {
     }
 
     std::vector<std::string> filepaths;
-    for (int i = optind; i < argc; i++) {
+    for (int i = optind; i < argc; ++i) {
         std::string filepath = argv[i];
 
         /* run GraphicsMagick or ImageMagick on a GIF file to convert it to frames */
@@ -222,7 +224,7 @@ int main (int argc, char *argv[]) {
                 int count = std::snprintf(cmd_args, BUFFER_LEN, MAGICK_CMD_IDENTIFY,
                     filepath.c_str());
                 std::snprintf(cmd, BUFFER_LEN-count, magickcmd.c_str(), cmd_args);
-                s = exec(cmd, true, a['q'], 102400);
+                s = exec(cmd, true, a['q'], MAGICK_CMD_IDENTIFY_LIMIT);
             }
 
             if (!a['c']) {
@@ -265,13 +267,13 @@ int main (int argc, char *argv[]) {
             struct dirent *d;
             while ((d = readdir(dir)) != NULL) {
                 if (d->d_name[0] != '.') {
-                    counter++;
+                    ++counter;
                 }
             }
             closedir(dir);
 
             /* generate filenames in order of index */
-            for (size_t j = 0; j < counter; j++) {
+            for (size_t j = 0; j < counter; ++j) {
                 char filename[BUFFER_LEN];
                 std::snprintf(filename, BUFFER_LEN, FRAME_FILENAME, tempdir, j);
                 filepaths.push_back(filename);
@@ -313,7 +315,7 @@ int main (int argc, char *argv[]) {
         if (string_endswith_lowercase(filepath, SVG_SUFFIX)) {
             std::snprintf(cmd, BUFFER_LEN, cleanercmd.c_str(), filepath.c_str());
         } else {
-            size_t pos = 0;
+            int pos = 0;
             pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos,
                 tracercmd.c_str(), filepath.c_str());
             pos += std::snprintf(&cmd[pos], BUFFER_LEN-pos, " | ");
@@ -334,7 +336,7 @@ int main (int argc, char *argv[]) {
             if (s == "") {
                 /* change cleaner to fallback and try again */
                 cleanercmd = CLEANER_CMD_FALLBACK;
-                i--;
+                --i;
                 continue;
             }
         } else {
@@ -371,7 +373,7 @@ int main (int argc, char *argv[]) {
             /* all elements are set to hidden before any element for a frame loads
                 or otherwise Chrome starts timing animation of elements as SVG loads */
             *out << "<defs><style type=\"text/css\">";
-            for (int j = 0; j < len; j++) {
+            for (size_t j = 0; j < len; ++j) {
                 if (j > 0) {
                     *out << ",";
                 }
@@ -410,7 +412,7 @@ int main (int argc, char *argv[]) {
         /* output frame wrapped in a `<g>` tag for grouping */
         *out << "<g id=\"" << idprefix << i << "\">" << s << "</g>";
 
-        i++;
+        ++i;
     }
 
     /* output CSS animation definitions with no unnecessary whitespace
@@ -423,10 +425,10 @@ int main (int argc, char *argv[]) {
     /* end frame index can be defined for non-infinite animation */
     if (endframe != "" && itercount != "infinite") {
         /* add length to negative end frame index and wrap out-of-bound index */
-        e = (atoi(endframe.c_str()) + len) % len;
+        e = ((size_t) atoi(endframe.c_str()) + len) % len;
     }
 
-    for (size_t j = 0; j < len; j++) {
+    for (size_t j = 0; j < len; ++j) {
         if (j > 0) {
             *out << ",";
         }
@@ -442,13 +444,13 @@ int main (int argc, char *argv[]) {
             ic = 1;
         }
         /* each of the frames after end frame has its itercount decremented by 1 */ 
-        for (size_t j = e + 1; j < len; j++) {
-            if (j > e + 1) {
+        for (size_t j = e + 1; j < len; ++j) {
+            if (j > (e + 1)) {
                 *out << ",";
             }
             *out << "#" << idprefix << j;
         }
-        if (e + 1 < len) {
+        if ((e + 1) < len) {
             *out << "{animation-iteration-count:" << (ic - 1) << "}";
         }
 
@@ -460,7 +462,7 @@ int main (int argc, char *argv[]) {
         *out << "@keyframes " << idprefix << "e{to{visibility:visible}}";
     }
 
-    for (size_t j = 0; j < len; j++) {
+    for (size_t j = 0; j < len; ++j) {
         *out << "#" << idprefix << j << "{";
         *out << "animation-delay:" << (delaysecs * (double) j) << "s";
         if (j == e) {
