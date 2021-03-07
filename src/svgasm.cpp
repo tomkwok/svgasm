@@ -62,17 +62,16 @@
 
 inline std::string exec (std::string cmd, const bool exit_on_fail,
                             const bool quiet, const int limit) {
-    if (!quiet) {
-        std::cerr << cmd << std::endl;
-    }
-    std::string result = "";
     if (quiet) {
         cmd += " 2>/dev/null";
+    } else {
+        std::cerr << cmd << std::endl;
     }
     FILE* pipe = popen(cmd.c_str(), "r");
     if (pipe == 0) {
         std::cerr << "popen() failed.";
     }
+    std::string result = "";
     char buffer[BUFFER_LEN];
     try {
         int counter = 0;
