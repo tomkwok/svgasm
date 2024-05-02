@@ -245,7 +245,7 @@ int main (int argc, char *argv[]) {
             }
 
             char tempdir[] = TEMP_DIR;
-            if (mkdtemp(tempdir) == NULL) {
+            if (mktemp(tempdir) == NULL) {
                 std::cerr << "Temporary directory creation failed." << std::endl;
                 exit(0);
             }
